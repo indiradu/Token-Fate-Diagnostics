@@ -1,0 +1,3 @@
+run,slice,comparison,metric,eval_rows,bootstrap_examples,point_delta,bootstrap_ci_low,bootstrap_ci_high,bootstrap_samples,bootstrap_unit
+high_confidence_selector,selector_high_confidence_early,selector_minus_confidence_only,auroc,16090,100,0.022797844374342735,-0.0029426772384387677,0.04060348851433351,1000,example
+high_confidence_selector,selector_high_confidence_early,selector_minus_confidence_only,average_precision,16090,100,0.031151733045899375,-0.004980069527261527,0.11587217376708943,1000,example

@@ -1,0 +1,100 @@
+target,probe,train_rows,eval_rows,positive_rate,accuracy,brier,auc,average_precision,skipped
+all_trace_regret,all_trace_regret/logits,13680,13680,0.3142543859649123,0.816812865497076,0.12641424001498083,0.9067319781122822,0.7631167382791152,
+all_trace_regret,all_trace_regret/layer_12_hidden,13680,13680,0.3142543859649123,0.6733918128654971,0.20625439211908903,0.7333210195889456,0.5468999757226236,
+all_trace_regret,all_trace_regret/layer_12_hidden_dynamics,13680,13680,0.3142543859649123,0.5592105263157895,0.24504429006182396,0.6660587902194948,0.46215092035411737,
+all_trace_regret,all_trace_regret/layer_12_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8155701754385964,0.12661455870515945,0.9059452349813789,0.7596701933939674,
+all_trace_regret,all_trace_regret/layer_12_hidden_plus_logits,13680,13680,0.3142543859649123,0.7996345029239766,0.13877040127560286,0.8843097182942096,0.7164769402899462,
+all_trace_regret,all_trace_regret/layer_16_hidden,13680,13680,0.3142543859649123,0.6755116959064328,0.20934825522219058,0.7032680692482733,0.5170260121456347,
+all_trace_regret,all_trace_regret/layer_16_hidden_dynamics,13680,13680,0.3142543859649123,0.5618421052631579,0.24468978609027495,0.6665611220573505,0.46671206278300936,
+all_trace_regret,all_trace_regret/layer_16_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8133771929824561,0.12904977165111378,0.9044788926774854,0.7592118890929737,
+all_trace_regret,all_trace_regret/layer_16_hidden_plus_logits,13680,13680,0.3142543859649123,0.7980994152046783,0.13851274020518747,0.8860467100543904,0.7189702110074154,
+all_trace_regret,all_trace_regret/layer_20_hidden,13680,13680,0.3142543859649123,0.7002923976608187,0.19868242419394444,0.7386206161390043,0.5648571476440825,
+all_trace_regret,all_trace_regret/layer_20_hidden_dynamics,13680,13680,0.3142543859649123,0.6405701754385965,0.2193636900673939,0.6621227065372122,0.46138185271579507,
+all_trace_regret,all_trace_regret/layer_20_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8161549707602339,0.1276218818033746,0.9047028758692987,0.7550085259404125,
+all_trace_regret,all_trace_regret/layer_20_hidden_plus_logits,13680,13680,0.3142543859649123,0.8064327485380117,0.13186369762725164,0.8919084466409823,0.7232000444182999,
+all_trace_regret,all_trace_regret/layer_24_hidden,13680,13680,0.3142543859649123,0.7081140350877193,0.1893402198679577,0.7782409193759943,0.5681939618657648,
+all_trace_regret,all_trace_regret/layer_24_hidden_dynamics,13680,13680,0.3142543859649123,0.6011695906432749,0.2304674146985731,0.6317677644669821,0.4112282329961899,
+all_trace_regret,all_trace_regret/layer_24_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8105994152046784,0.12920135690776804,0.9045820692590347,0.7740812796630412,
+all_trace_regret,all_trace_regret/layer_24_hidden_plus_logits,13680,13680,0.3142543859649123,0.806359649122807,0.13998308351510308,0.8916366193698374,0.725401889996459,
+all_trace_regret,all_trace_regret/layer_28_hidden,13680,13680,0.3142543859649123,0.7187134502923976,0.19108569476290274,0.7706051456524288,0.5683557600082426,
+all_trace_regret,all_trace_regret/layer_28_hidden_dynamics,13680,13680,0.3142543859649123,0.6283625730994152,0.22771456477520685,0.685114917164033,0.4512097845258952,
+all_trace_regret,all_trace_regret/layer_28_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.814546783625731,0.12684777721479,0.90602888463239,0.7604004563590708,
+all_trace_regret,all_trace_regret/layer_28_hidden_plus_logits,13680,13680,0.3142543859649123,0.8002923976608187,0.13973795235274108,0.8829409238566499,0.7039275669764554,
+all_trace_regret,all_trace_regret/layer_32_hidden,13680,13680,0.3142543859649123,0.6624269005847954,0.22628365816774243,0.6657703123656749,0.4556315637095775,
+all_trace_regret,all_trace_regret/layer_32_hidden_dynamics,13680,13680,0.3142543859649123,0.5465643274853801,0.24586200650048262,0.5757919769681901,0.3423220230041175,
+all_trace_regret,all_trace_regret/layer_32_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8172514619883041,0.12580046940744455,0.906825608194457,0.7638704387716875,
+all_trace_regret,all_trace_regret/layer_32_hidden_plus_logits,13680,13680,0.3142543859649123,0.7929824561403509,0.14570905829731742,0.8614579775867537,0.6523156571593437,
+all_trace_regret,all_trace_regret/layer_4_hidden,13680,13680,0.3142543859649123,0.6444444444444445,0.23158789252141854,0.6868875409231772,0.4454108000654965,
+all_trace_regret,all_trace_regret/layer_4_hidden_dynamics,13680,13680,0.3142543859649123,0.5336988304093567,0.23371365712478953,0.5772180008097911,0.33575278122024355,
+all_trace_regret,all_trace_regret/layer_4_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.8085526315789474,0.13010823309549877,0.9035019262480107,0.7735341589754829,
+all_trace_regret,all_trace_regret/layer_4_hidden_plus_logits,13680,13680,0.3142543859649123,0.7880116959064327,0.14386664369315286,0.8771730529152045,0.7038331338286864,
+all_trace_regret,all_trace_regret/layer_8_hidden,13680,13680,0.3142543859649123,0.6676169590643275,0.2122039116719689,0.717970422167775,0.5229859352350972,
+all_trace_regret,all_trace_regret/layer_8_hidden_dynamics,13680,13680,0.3142543859649123,0.5818713450292398,0.2252893914156098,0.653104512917889,0.4085907816880304,
+all_trace_regret,all_trace_regret/layer_8_hidden_dynamics_plus_logits,13680,13680,0.3142543859649123,0.810891812865497,0.12898286189262942,0.9025965461657923,0.7589233063912059,
+all_trace_regret,all_trace_regret/layer_8_hidden_plus_logits,13680,13680,0.3142543859649123,0.8010233918128655,0.13649311005231707,0.8915942552291072,0.7415943448177544,
+early_trace_regret,early_trace_regret/logits,7680,7680,0.423046875,0.807421875,0.13559232428313214,0.8815443030958121,0.795086228333442,
+early_trace_regret,early_trace_regret/layer_12_hidden,7680,7680,0.423046875,0.6311197916666667,0.24654305305882065,0.6786479932821716,0.5802229588025636,
+early_trace_regret,early_trace_regret/layer_12_hidden_dynamics,7680,7680,0.423046875,0.5696614583333334,0.23625800113433573,0.6322418598809877,0.5248330354111066,
+early_trace_regret,early_trace_regret/layer_12_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.8071614583333333,0.13467446384941853,0.8838116882516983,0.7949345478465605,
+early_trace_regret,early_trace_regret/layer_12_hidden_plus_logits,7680,7680,0.423046875,0.785546875,0.1585047643093466,0.8540527964127498,0.750772426247347,
+early_trace_regret,early_trace_regret/layer_16_hidden,7680,7680,0.423046875,0.625,0.24882701552262476,0.6622616517458386,0.5656528715698459,
+early_trace_regret,early_trace_regret/layer_16_hidden_dynamics,7680,7680,0.423046875,0.5678385416666667,0.24257869779229135,0.6239798868030084,0.5246293293389743,
+early_trace_regret,early_trace_regret/layer_16_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.8049479166666667,0.13376135693217017,0.8855713047203247,0.7988502406664115,
+early_trace_regret,early_trace_regret/layer_16_hidden_plus_logits,7680,7680,0.423046875,0.7740885416666666,0.16271313398752485,0.8487888466489246,0.7479432591441657,
+early_trace_regret,early_trace_regret/layer_20_hidden,7680,7680,0.423046875,0.6348958333333333,0.2404428636803442,0.6855295787763525,0.5832547041947924,
+early_trace_regret,early_trace_regret/layer_20_hidden_dynamics,7680,7680,0.423046875,0.59453125,0.23468037193520586,0.6333101537969532,0.542827191104815,
+early_trace_regret,early_trace_regret/layer_20_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.8046875,0.13429084458779167,0.8846116844173848,0.7963546920714127,
+early_trace_regret,early_trace_regret/layer_20_hidden_plus_logits,7680,7680,0.423046875,0.788671875,0.15219351099717257,0.8611307515483646,0.7642716936608148,
+early_trace_regret,early_trace_regret/layer_24_hidden,7680,7680,0.423046875,0.6615885416666667,0.2296124813673276,0.7203407343224334,0.6335254679153357,
+early_trace_regret,early_trace_regret/layer_24_hidden_dynamics,7680,7680,0.423046875,0.5548177083333333,0.24744926256680397,0.5814507861349836,0.4825188589626124,
+early_trace_regret,early_trace_regret/layer_24_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.8002604166666667,0.139206015178751,0.882980920331093,0.801835342294072,
+early_trace_regret,early_trace_regret/layer_24_hidden_plus_logits,7680,7680,0.423046875,0.77109375,0.161238226780256,0.8523656637505739,0.7639108047133475,
+early_trace_regret,early_trace_regret/layer_28_hidden,7680,7680,0.423046875,0.6641927083333333,0.22991000031854092,0.7226101338821402,0.6220719425518613,
+early_trace_regret,early_trace_regret/layer_28_hidden_dynamics,7680,7680,0.423046875,0.612890625,0.23354169960170404,0.6478829414658012,0.5099674765203609,
+early_trace_regret,early_trace_regret/layer_28_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.800390625,0.13930033899529792,0.883404153520077,0.8037347184192642,
+early_trace_regret,early_trace_regret/layer_28_hidden_plus_logits,7680,7680,0.423046875,0.7815104166666667,0.15918308729927358,0.8573586762004926,0.7663788513485694,
+early_trace_regret,early_trace_regret/layer_32_hidden,7680,7680,0.423046875,0.6763020833333333,0.22873976947086988,0.7346583525969381,0.6474099719410655,
+early_trace_regret,early_trace_regret/layer_32_hidden_dynamics,7680,7680,0.423046875,0.5703125,0.23808466211584112,0.5932783234380955,0.471240536763098,
+early_trace_regret,early_trace_regret/layer_32_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.799609375,0.1394469348679334,0.8831442259649845,0.8033023348748342,
+early_trace_regret,early_trace_regret/layer_32_hidden_plus_logits,7680,7680,0.423046875,0.7850260416666667,0.15259166086222956,0.8636827233405984,0.7691917659683711,
+early_trace_regret,early_trace_regret/layer_4_hidden,7680,7680,0.423046875,0.623828125,0.26487629283895947,0.6605062030092552,0.5350679588731119,
+early_trace_regret,early_trace_regret/layer_4_hidden_dynamics,7680,7680,0.423046875,0.5403645833333334,0.23944511862950468,0.5897106406158408,0.47561997902700925,
+early_trace_regret,early_trace_regret/layer_4_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.8049479166666667,0.13468920068269993,0.884507456385205,0.7967823155561814,
+early_trace_regret,early_trace_regret/layer_4_hidden_plus_logits,7680,7680,0.423046875,0.7813802083333333,0.1570069642910918,0.8612313328150064,0.7689094434611923,
+early_trace_regret,early_trace_regret/layer_8_hidden,7680,7680,0.423046875,0.6356770833333333,0.25245856360140057,0.6783295090918726,0.5673543858086134,
+early_trace_regret,early_trace_regret/layer_8_hidden_dynamics,7680,7680,0.423046875,0.5611979166666666,0.23801615571612053,0.6149594559553729,0.49423809535726976,
+early_trace_regret,early_trace_regret/layer_8_hidden_dynamics_plus_logits,7680,7680,0.423046875,0.807421875,0.13525732857360487,0.8828699891965439,0.7947702711658992,
+early_trace_regret,early_trace_regret/layer_8_hidden_plus_logits,7680,7680,0.423046875,0.7760416666666666,0.16724932456626693,0.849993529596003,0.7598332256538741,
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_12_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_12_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_12_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_12_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_16_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_16_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_16_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_16_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_20_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_20_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_20_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_20_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_24_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_24_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_24_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_24_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_28_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_28_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_28_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_28_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_32_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_32_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_32_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_32_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_4_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_4_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_4_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_4_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_8_hidden,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_8_hidden_dynamics,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_8_hidden_dynamics_plus_logits,2398,2633,0.0,,,,,single-class labels
+stable_high_conf_trace_regret,stable_high_conf_trace_regret/layer_8_hidden_plus_logits,2398,2633,0.0,,,,,single-class labels

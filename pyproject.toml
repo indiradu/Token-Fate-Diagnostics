@@ -1,0 +1,13 @@
+[project]
+name = "regret-remasking"
+version = "0.1.0"
+description = "Pilot experiments for regret-aware remasking in diffusion language models."
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+

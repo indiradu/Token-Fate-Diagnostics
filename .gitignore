@@ -1,0 +1,39 @@
+.DS_Store
+Icon*
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+logs/
+outputs/
+external/
+checkpoints/
+.cache/
+
+# Raw traces, hidden-state dumps, local fitted models, and scheduler outputs are
+# intentionally excluded. Compact artifacts supporting reported tables are
+# force-added selectively; see results/README.md.
+results/**
+!results/README.md
+
+# Draft material, figures, and cluster submission helpers stay local until a
+# separate public release is appropriate.
+paper/
+cluster/
+scripts/make_paper_figures.py
+
+# Superseded pilot notes are kept locally but are not part of the paper-facing
+# artifact bundle.
+docs/layerwise_probe_summary.csv
+docs/layerwise_probe_summary.md
+docs/layerwise_probe_summary_layerwise.csv
+docs/layerwise_probe_summary_wide30_layerwise.csv
+docs/pilot_analysis_auto.md
+docs/pilot_results_200.md
+docs/pilot_results_gsm8k_50.md
+docs/pilot_results_two_task.md
+docs/publishability_verdict.md
+docs/experiment_plan.md
+docs/full_pivot_experiment_results.md
+docs/token_fate_interpretability_results.md

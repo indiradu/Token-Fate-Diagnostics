@@ -1,0 +1,5 @@
+run,slice,comparison,metric,eval_rows,bootstrap_examples,point_delta,bootstrap_ci_low,bootstrap_ci_high,bootstrap_samples,bootstrap_unit
+heldout_gsm8k,high_confidence_q75,fate_lite_minus_confidence_only,auroc,103223,500,-0.22391386548382708,-0.31783695701489806,-0.12030281381866535,1000,example
+heldout_gsm8k,high_confidence_q75,fate_lite_minus_confidence_only,average_precision,103223,500,-0.006357827098073531,-0.010745479001302058,-0.0033312109670444066,1000,example
+heldout_gsm8k,early_high_confidence_q75,fate_lite_minus_confidence_only,auroc,56527,500,-0.13514043878463733,-0.22186992352111715,-0.0422736587197133,1000,example
+heldout_gsm8k,early_high_confidence_q75,fate_lite_minus_confidence_only,average_precision,56527,500,-0.0029643962968039627,-0.009673871123907458,0.007545179378275227,1000,example

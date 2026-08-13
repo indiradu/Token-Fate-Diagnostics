@@ -1,0 +1,13 @@
+{
+  "candidate_mode": "prospective",
+  "candidates": 717,
+  "forced_applied_rate": 1.0,
+  "forced_token_survival_rate": 1.0,
+  "final_token_change_rate": 0.06694560669456066,
+  "non_target_token_change_rate": 0.07670850767085077,
+  "mean_non_target_token_change_count": 0.9302649930264993,
+  "suffix_token_change_rate": 0.04741980474198047,
+  "baseline_accuracy": 0.6443514644351465,
+  "forced_accuracy": 0.6401673640167364,
+  "answer_correct_change_rate": 0.0041841004184100415
+}

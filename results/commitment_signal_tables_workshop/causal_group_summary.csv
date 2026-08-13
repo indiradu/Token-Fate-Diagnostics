@@ -1,0 +1,4 @@
+candidate_group,candidates,forced_applied_rate,forced_token_survival_rate,final_token_change_rate,baseline_accuracy,forced_accuracy,answer_correct_change_rate
+matched_non_regret,100,1.0,1.0,0.0,0.69,0.71,0.06
+matched_random_high_conf,100,1.0,1.0,0.03,0.69,0.68,0.01
+prospective_regret,100,1.0,1.0,0.88,0.69,0.63,0.16

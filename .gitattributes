@@ -1,0 +1,6 @@
+# Generated CSV fields may contain model text ending in spaces. Treat them as
+# data rather than source formatting for whitespace checks.
+*.csv -whitespace
+*.md whitespace=-blank-at-eof
+*.py whitespace=-blank-at-eof
+*.toml whitespace=-blank-at-eof

@@ -1,0 +1,24 @@
+{
+  "requested_layers": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32
+  ],
+  "resolved_layers": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32
+  ],
+  "capture_mode": "hooks",
+  "projection_dim": 64
+}
