@@ -28,6 +28,67 @@ The proposed paper should show when these fates agree, when they diverge, and
 how a decoder can use that distinction to improve the quality-efficiency
 frontier.
 
+## Contribution Framing
+
+### Contribution 1: Three notions of token settlement
+
+We identify and operationalize three distinct notions of settlement in
+diffusion LM decoding:
+
+- **Semantic settlement:** the token identity has reached its final value.
+- **Representational settlement:** the token's hidden state or K/V state has
+  stopped changing in ways that matter to the rest of the sequence.
+- **Computational settlement:** the token can be removed from future row-wise
+  computation without changing the final output or task result.
+
+This taxonomy separates a decoding question from a systems question. A token
+can be semantically settled while still carrying useful evolving context for
+other positions.
+
+### Contribution 2: Observational stability is not compute safety
+
+We show that observational token stability is systematically different from
+interventional compute safety. The observational question is:
+
+```text
+P(x_i,t = x_i,T | H_t)
+```
+
+where `H_t` is the history available at denoising step `t`. This asks whether
+the current token identity will match the final token.
+
+The interventional compute-safety question is:
+
+```text
+P(Y_freeze(i,t) = Y_baseline | H_t)
+```
+
+This asks whether the final decoded sequence or task outcome remains unchanged
+under an intervention that freezes position `i` at step `t`.
+
+These probabilities need not agree. A token may already have its final identity
+while its representation continues to affect neighboring tokens. Conversely, a
+token may be observationally unstable in isolation but computationally
+irrelevant to the task metric. This observational-versus-interventional gap is
+the central scientific distinction of the project.
+
+### Contribution 3: Irreversible decoding as constrained risk allocation
+
+We formulate locking as a constrained allocation problem: maximize saved
+compute while keeping semantic premature-lock risk and compute-freeze risk
+below explicit budgets. This shifts the objective from "lock as many stable
+tokens as possible" to "spend irreversible actions where their conditional
+risk is acceptable."
+
+### Contribution 4: Selective exploitation of the disagreement region
+
+We exploit the region where cheap convergence signals and downstream risk
+disagree. In practice, this is likely to include early high-confidence tokens:
+they look safe enough to invite locking, but our current results show that
+token-fate features still add predictive information over confidence there.
+The method should improve the quality-compute Pareto frontier by applying
+extra risk estimation only to these consequential lock candidates.
+
 ## Motivation
 
 Masked diffusion language models repeatedly recompute every token position
@@ -240,7 +301,22 @@ AUROC. It is:
 > apparently safe lock candidates, and semantic safety is not sufficient for
 > compute safety.
 
-This produces three falsifiable claims:
+The core empirical test is whether observational settlement predicts the
+counterfactual effect of freezing. We should report both:
+
+```text
+P(x_i,t = x_i,T | H_t)
+```
+
+and:
+
+```text
+P(Y_freeze(i,t) = Y_baseline | H_t)
+```
+
+then measure where they disagree.
+
+This produces four falsifiable claims:
 
 1. **Selective risk estimation beats all-token prediction at equal overhead.**
    Running learned fate prediction only on high-confidence candidates should
@@ -255,6 +331,10 @@ This produces three falsifiable claims:
    Some positions are semantically stable but still representationally active;
    freezing them immediately should harm neighboring tokens more than a staged
    commit-then-freeze policy.
+
+4. **The disagreement region drives the Pareto gain.**
+   The method's advantage should concentrate where a token appears lockable by
+   cheap criteria but has nontrivial interventional risk under compute freeze.
 
 ## Experimental Plan
 
@@ -299,6 +379,8 @@ Computational labels:
 - If the token were compute-frozen at step `t`, would other tokens change?
 - Does answer correctness or generation quality change?
 - Is the effect local, suffix-wide, or global?
+- How often does `x_i,t = x_i,T` hold while `Y_freeze(i,t) != Y_baseline`?
+- How often does observational instability matter for the final task outcome?
 
 This phase should produce the core scientific figure:
 
@@ -329,6 +411,14 @@ H = {(i,t): confidence_i,t > tau_conf and x_i,t != x_i,T}
 ```
 
 Evaluate how well each method finds or avoids the dangerous positions in `H`.
+Also construct the compute-safety disagreement set:
+
+```text
+C = {(i,t): x_i,t = x_i,T but Y_freeze(i,t) != Y_baseline}
+```
+
+This set is the direct evidence for Contribution 2. If it is large or
+structured, semantic settlement is insufficient for compute locking.
 
 ### Phase 3: Commit-Lock Decoder
 
