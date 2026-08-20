@@ -18,6 +18,16 @@ settled now. Our proposal asks a harder question:
 The key distinction is that semantic convergence, representational convergence,
 and computational dispensability are not the same object.
 
+Throughout the project, use three hypothesis labels:
+
+- **A:** Semantic commitment does not imply representation settlement.
+- **B:** Semantic commitment does not imply compute safety.
+- **C:** Representation drift predicts compute unsafety beyond matched controls.
+
+These are labels, not new variables. Diagnostics such as non-target token
+changes, answer changes, or output divergence are measurements used to test the
+three hypotheses.
+
 | Fate type | Question | Failure if wrong |
 | --- | --- | --- |
 | Semantic fate | Will the token identity change by the final sequence? | Premature token commitment |
@@ -316,25 +326,24 @@ P(Y_freeze(i,t) = Y_baseline | H_t)
 
 then measure where they disagree.
 
-This produces four falsifiable claims:
+This produces three falsifiable hypotheses:
 
-1. **Selective risk estimation beats all-token prediction at equal overhead.**
-   Running learned fate prediction only on high-confidence candidates should
-   recover most safety benefits while preserving compute savings.
+1. **A:** Some positions are semantically committed while their hidden or K/V
+   representations still move materially.
+2. **B:** Some semantically committed positions still affect neighboring tokens
+   or the final task answer under a freeze intervention.
+3. **C:** High post-commit representation drift identifies freeze-sensitive
+   positions better than matched low-drift controls.
 
-2. **Risk-controlled admission beats raw convergence detection.**
-   At matched locked-token rate or matched FLOP budget, calibrated risk gates
-   should reduce `P(future change | locked)` versus confidence, KL/JSD,
-   persistence, and SureLock-style criteria.
+The method is worth building only if those hypotheses translate into useful
+engineering behavior:
 
-3. **Commit safety and compute safety diverge.**
-   Some positions are semantically stable but still representationally active;
-   freezing them immediately should harm neighboring tokens more than a staged
-   commit-then-freeze policy.
-
-4. **The disagreement region drives the Pareto gain.**
-   The method's advantage should concentrate where a token appears lockable by
-   cheap criteria but has nontrivial interventional risk under compute freeze.
+- selective risk estimation on lock candidates preserves most of the safety
+  benefit at lower overhead than all-token prediction;
+- risk-controlled admission beats raw convergence detection at matched lock
+  rate or matched FLOP budget;
+- the Pareto gain concentrates where cheap criteria say "lock" but the
+  interventional risk is still nontrivial.
 
 ## Experimental Plan
 
@@ -404,21 +413,26 @@ x-axis: lock rate or estimated FLOPs saved
 y-axis: premature-lock rate, lock precision, and settlement delay
 ```
 
-The high-confidence disagreement set should be explicit:
+The high-confidence disagreement subset should be explicit: token-steps where
+confidence is high, but the current token still differs from the final token.
+Evaluate how well each method finds or avoids these dangerous positions.
 
 ```text
-H = {(i,t): confidence_i,t > tau_conf and x_i,t != x_i,T}
+semantic_miss_set = {
+  (i,t): confidence_i,t > tau_conf and x_i,t != x_i,T
+}
 ```
 
-Evaluate how well each method finds or avoids the dangerous positions in `H`.
-Also construct the compute-safety disagreement set:
+Also construct the compute-safety disagreement subset: token-steps where the
+current token already matches the final token, but freezing that position
+changes the baseline output. This subset is the direct evidence for B. If it is
+large or structured, semantic settlement is insufficient for compute locking.
 
 ```text
-C = {(i,t): x_i,t = x_i,T but Y_freeze(i,t) != Y_baseline}
+compute_disagreement_set = {
+  (i,t): x_i,t = x_i,T and Y_freeze(i,t) != Y_baseline
+}
 ```
-
-This set is the direct evidence for Contribution 2. If it is large or
-structured, semantic settlement is insufficient for compute locking.
 
 ### Phase 3: Commit-Lock Decoder
 

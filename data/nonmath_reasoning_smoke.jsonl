@@ -1,0 +1,10 @@
+{"id":"nonmath-smoke-000","question":"A drawer contains a red scarf, a blue hat, and a green glove. The item worn on the head is the target. What is the target item?","answer":"hat"}
+{"id":"nonmath-smoke-001","question":"Choose the word that best completes the analogy: bird is to nest as bee is to what?","answer":"hive"}
+{"id":"nonmath-smoke-002","question":"In the sentence 'The lantern glowed after sunset', which word names the object giving light?","answer":"lantern"}
+{"id":"nonmath-smoke-003","question":"A message says: 'If the seal is broken, reject the package. The seal is broken.' Should the package be accepted or rejected?","answer":"rejected"}
+{"id":"nonmath-smoke-004","question":"Classify the sentiment of this review as positive or negative: 'The service was slow, but the meal was excellent and I would return.'","answer":"positive"}
+{"id":"nonmath-smoke-005","question":"Which word does not belong with the others: oak, maple, granite, pine?","answer":"granite"}
+{"id":"nonmath-smoke-006","question":"Rewrite the word 'TRACE' in lowercase.","answer":"trace"}
+{"id":"nonmath-smoke-007","question":"A ticket marked 'valid' may enter. A ticket marked 'void' may not enter. This ticket is marked 'void'. What is the entry decision?","answer":"may not enter"}
+{"id":"nonmath-smoke-008","question":"Pick the color described by this clue: grass, emerald, and mint are usually this color.","answer":"green"}
+{"id":"nonmath-smoke-009","question":"If every wug is a dax, and every dax is a mip, is every wug a mip?","answer":"yes"}

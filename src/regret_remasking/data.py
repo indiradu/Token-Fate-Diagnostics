@@ -219,7 +219,7 @@ def load_examples(
         ) from exc
 
     if dataset_key == "gsm8k":
-        hf = load_dataset("gsm8k", "main", split=split)
+        hf = load_dataset("openai/gsm8k", "main", split=split)
         question_key, answer_key = "question", "answer"
     elif dataset_key in {"math500", "math-500"}:
         hf = load_dataset("HuggingFaceH4/MATH-500", split="test")

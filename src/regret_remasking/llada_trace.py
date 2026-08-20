@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import time
 from dataclasses import dataclass
 import os
@@ -97,9 +98,59 @@ def infer_mask_token_id(tokenizer: Any, default: int = MASK_ID) -> int:
     return default
 
 
+def ensure_transformers_tied_weight_compat() -> None:
+    """Bridge older remote model wrappers to newer Transformers loaders."""
+    try:
+        from transformers import PreTrainedModel
+    except ImportError:
+        return
+
+    if hasattr(PreTrainedModel, "all_tied_weights_keys"):
+        return
+
+    @property
+    def all_tied_weights_keys(self: Any) -> dict[str, None]:
+        keys = getattr(self, "_tied_weights_keys", None) or []
+        if isinstance(keys, dict):
+            return keys
+        return {str(key): None for key in keys}
+
+    PreTrainedModel.all_tied_weights_keys = all_tied_weights_keys  # type: ignore[attr-defined]
+
+
+def ensure_remote_llada_compat(model_name: str) -> None:
+    """Patch known LLaDA remote-code signatures for newer Transformers."""
+    try:
+        from transformers.dynamic_module_utils import get_class_from_dynamic_module
+    except ImportError:
+        return
+
+    try:
+        model_cls = get_class_from_dynamic_module("modeling_llada.LLaDAModelLM", model_name)
+    except Exception:
+        return
+
+    try:
+        parameters = inspect.signature(model_cls.tie_weights).parameters
+    except (TypeError, ValueError):
+        return
+    if "missing_keys" in parameters:
+        return
+
+    original_tie_weights = model_cls.tie_weights
+
+    def tie_weights(self: Any, missing_keys: set[str] | None = None, recompute_mapping: bool = True) -> Any:
+        del missing_keys, recompute_mapping
+        return original_tie_weights(self)
+
+    model_cls.tie_weights = tie_weights
+
+
 def load_llada(model_name: str, device: str = "cuda", dtype: str = "bf16") -> tuple[Any, Any]:
     from transformers import AutoModel, AutoTokenizer
 
+    ensure_transformers_tied_weight_compat()
+    ensure_remote_llada_compat(model_name)
     torch_dtype = {
         "bf16": torch.bfloat16,
         "bfloat16": torch.bfloat16,
@@ -125,6 +176,10 @@ def load_llada(model_name: str, device: str = "cuda", dtype: str = "bf16") -> tu
         }
         load_kwargs["offload_folder"] = os.environ.get("LLADA_OFFLOAD_FOLDER", "/tmp/llada_offload")
     model = AutoModel.from_pretrained(model_name, **load_kwargs)
+    if not hasattr(model.config, "use_cache"):
+        model.config.use_cache = False
+    if not hasattr(model.config, "use_return_dict"):
+        model.config.use_return_dict = True
     if "device_map" not in load_kwargs:
         model = model.to(device)
     model.eval()
