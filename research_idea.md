@@ -1,12 +1,13 @@
-# Risk-Controlled Selective Locking for Diffusion Language Models
+# PhaseLock: Separating Commitment Risk, Reference Risk, and Compute Utility in Diffusion Language Models
 
 ## One-Sentence Thesis
 
 Irreversible token locking in diffusion language models should be treated as a
-risk-controlled decision problem, not just a convergence-detection heuristic:
-we separately estimate when a token is safe to commit, when its representation
-is safe to freeze, and when removing its row from future computation preserves
-final output quality.
+phased decision problem, not just a convergence-detection heuristic: we
+separately estimate when a token identity is safe to commit, when its
+representation is safe to freeze as the reference exposed to other tokens, and
+when removing its row from future computation is actually profitable on the
+target runtime.
 
 ## Core Claim
 
@@ -15,80 +16,94 @@ settled now. Our proposal asks a harder question:
 
 > What is the conditional risk of making this token irreversible?
 
-The key distinction is that semantic convergence, representational convergence,
-and computational dispensability are not the same object.
+The key distinction is that observational token stability, interventional
+freeze safety, and systems profitability are not the same object. Exact compute
+removal usually requires a fixed reference state; once that reference is exact
+and all state visible to other positions is frozen, the remaining question is
+mostly whether row removal is worthwhile on the hardware, not whether the
+unobservable row computation carries additional model-quality information.
 
-Throughout the project, use three hypothesis labels:
+Throughout the project, use three scientific hypothesis labels and keep the
+systems proposition separate:
 
-- **A:** Semantic commitment does not imply representation settlement.
-- **B:** Semantic commitment does not imply compute safety.
-- **C:** Representation drift predicts compute unsafety beyond matched controls.
+- **A:** Observational token stability does not imply commitment safety.
+- **B:** Commitment safety does not imply reference-freeze safety.
+- **C:** Representation drift predicts reference-freeze harm beyond matched
+  controls.
+- **U:** Reference-freeze safety does not imply compute profitability.
 
-These are labels, not new variables. Diagnostics such as non-target token
-changes, answer changes, or output divergence are measurements used to test the
-three hypotheses.
+`A` through `C` are model-behavior hypotheses. `U` is a systems utility
+proposition whose truth depends on active-set size, sequence length, batch
+size, cache layout, kernels, and hardware. Diagnostics such as non-target token
+changes, answer changes, output divergence, latency, or throughput are
+measurements used to test these claims.
 
-| Fate type | Question | Failure if wrong |
-| --- | --- | --- |
-| Semantic fate | Will the token identity change by the final sequence? | Premature token commitment |
-| Representational fate | Will the token's hidden/K/V state keep changing materially? | Stale context for neighboring tokens |
-| Computational fate | Can we skip future compute for this position without changing the final output or task result? | Accuracy or quality loss despite apparent stability |
+| Stage | Decision | Gate type | Question | Failure if wrong |
+| --- | --- | --- | --- | --- |
+| Commitment | Semantic lock | Causal quality risk | Can we irreversibly fix this token identity now? | The intervention changes sequence or task outcome. |
+| Reference freeze | Reference lock | Causal representation risk | Can other tokens safely see a cached hidden/K/V reference? | Stale context changes downstream tokens or task outcome. |
+| Compute removal | Row removal | Systems utility | Is skipping future row-wise compute faster after overheads? | Sparse execution adds overhead or fails to save latency. |
 
-The proposed paper should show when these fates agree, when they diverge, and
-how a decoder can use that distinction to improve the quality-efficiency
-frontier.
+The proposed paper should show when observational stability and intervention
+safety diverge, when reference freeze is unsafe despite commitment safety, and
+when safe reference freezes translate into real compute savings.
 
 ## Contribution Framing
 
-### Contribution 1: Three notions of token settlement
+### Contribution 1: Two risk gates plus one utility gate
 
-We identify and operationalize three distinct notions of settlement in
-diffusion LM decoding:
+We identify and operationalize three distinct decisions in diffusion LM
+decoding:
 
-- **Semantic settlement:** the token identity has reached its final value.
-- **Representational settlement:** the token's hidden state or K/V state has
-  stopped changing in ways that matter to the rest of the sequence.
-- **Computational settlement:** the token can be removed from future row-wise
-  computation without changing the final output or task result.
+- **Semantic lock:** the token identity is no longer eligible for remasking or
+  replacement.
+- **Reference freeze:** the token's hidden state or K/V state is cached as the
+  reference exposed to other positions.
+- **Row removal:** the token row is removed from future Q-projection,
+  attention-output, and FFN updates while active positions still attend to its
+  cached reference.
 
-This taxonomy separates a decoding question from a systems question. A token
-can be semantically settled while still carrying useful evolving context for
-other positions.
+The first two are causal quality-risk gates. The third is a systems utility
+gate. This separation matters because exact reference freeze should make the
+locked row's later private computation unobservable to active tokens; removing
+that computation is then mainly a question of latency, memory, packing, and
+kernel overheads.
 
-### Contribution 2: Observational stability is not compute safety
+### Contribution 2: Observational stability is not intervention safety
 
 We show that observational token stability is systematically different from
-interventional compute safety. The observational question is:
+interventional commitment safety. The observational question is:
 
 ```text
-P(x_i,t = x_i,T | H_t)
+S_i,t = 1[x_i,t = x_i,T]
 ```
 
 where `H_t` is the history available at denoising step `t`. This asks whether
 the current token identity will match the final token.
 
-The interventional compute-safety question is:
+The interventional commitment-safety question is:
 
 ```text
-P(Y_freeze(i,t) = Y_baseline | H_t)
+C_i,t = 1[Y_commit(i,t) = Y_baseline]
 ```
 
 This asks whether the final decoded sequence or task outcome remains unchanged
-under an intervention that freezes position `i` at step `t`.
+under an intervention that commits position `i` at step `t`.
 
-These probabilities need not agree. A token may already have its final identity
-while its representation continues to affect neighboring tokens. Conversely, a
-token may be observationally unstable in isolation but computationally
-irrelevant to the task metric. This observational-versus-interventional gap is
-the central scientific distinction of the project.
+These quantities need not agree. A token may already match its final identity
+while forcing it early still changes the trajectory, or it may differ from its
+eventual final token while the task answer remains unchanged. This
+observational-versus-interventional gap is the central scientific distinction
+from future-stability commitment policies.
 
 ### Contribution 3: Irreversible decoding as constrained risk allocation
 
-We formulate locking as a constrained allocation problem: maximize saved
-compute while keeping semantic premature-lock risk and compute-freeze risk
-below explicit budgets. This shifts the objective from "lock as many stable
-tokens as possible" to "spend irreversible actions where their conditional
-risk is acceptable."
+We formulate locking as a constrained allocation problem with two causal risk
+budgets and one utility gate: maximize saved compute while keeping commitment
+risk and stale-reference risk below explicit budgets, then remove row-wise
+compute only where expected runtime gain is positive. This shifts the objective
+from "lock as many stable tokens as possible" to "spend irreversible actions
+where their intervention risk is acceptable and their systems payoff is real."
 
 ### Contribution 4: Selective exploitation of the disagreement region
 
@@ -123,15 +138,16 @@ misleading.
 
 ## Research Question
 
-Can a diffusion LM decoder save compute under explicit lock-risk budgets by
-using different evidence for three transitions?
+Can a diffusion LM decoder save compute by controlling two intervention risks
+and applying compute removal only when the runtime utility is positive?
 
 ```text
-ACTIVE -> COMMITTED -> COMPUTE-FROZEN
+ACTIVE -> SEMANTIC-LOCKED -> REFERENCE-FROZEN -> COMPUTE-REMOVED
 ```
 
 The target is not maximum locking. The target is maximum saved compute subject
-to bounded premature-lock and stale-representation risk.
+to bounded commitment risk, bounded stale-reference risk, and positive compute
+utility.
 
 ## Decision-Theoretic Formulation
 
@@ -139,21 +155,24 @@ Let `pi` be a locking policy. A simple objective is:
 
 ```text
 maximize_pi   E[compute_saved(pi)]
-subject to    P(semantic_premature_lock | pi locks) <= eps_commit
-              P(compute_freeze_harms_output | pi freezes) <= eps_compute
+subject to    R_commit(pi) <= eps_commit
+              R_ref(pi) <= eps_ref
+              E[g_compute(pi) | runtime state] >= g_min
 ```
 
 Equivalently, for a tunable tradeoff:
 
 ```text
 maximize_pi E[compute_saved]
-            - lambda_commit E[semantic_lock_regret]
-            - lambda_compute E[compute_freeze_regret]
+            - lambda_commit E[commitment_regret]
+            - lambda_ref E[stale_reference_regret]
+            + lambda_gain E[g_compute]
 ```
 
 The learned token-fate model is therefore not the whole contribution. It is one
-estimator of conditional lock risk, invoked only where cheap signals become
-unreliable.
+possible proxy for commitment risk, invoked only where cheap signals become
+unreliable; the final controlled quantities are intervention risks and realized
+runtime gain, not just future-token stability.
 
 ## Relation to Prior Work
 
@@ -162,16 +181,17 @@ unreliable.
 SureLock is the main systems baseline. It is training-free, locks unmasked
 positions when adjacent-step posterior KL indicates stability, optionally adds
 a confidence gate, caches locked K/V, and skips Q-projection and FFN rows for
-locked positions. It establishes that compute locking can reduce algorithmic
-FLOPs substantially.
+locked positions. It establishes that row-wise compute removal can reduce
+algorithmic FLOPs substantially.
 
 Our difference:
 
 - SureLock asks whether the local posterior is stable enough to stop compute.
-- We ask whether irreversible commit and compute-freeze decisions satisfy
-  calibrated risk budgets.
+- We ask whether semantic lock and reference-freeze decisions satisfy
+  calibrated intervention-risk budgets, then whether row removal has positive
+  runtime utility.
 - We can reuse SureLock's compute machinery, but replace or augment its lock
-  admission rule.
+  admission rule with a phase-specific controller.
 
 ### TraceLock and learned commitment policies
 
@@ -184,7 +204,8 @@ stronger distinction is:
 
 - learned semantic fate is only one risk estimator;
 - we apply it selectively where cheap signals are ambiguous;
-- we separate semantic commit risk from representation/cache risk;
+- we separate semantic lock risk from reference/cache risk and compute-removal
+  utility;
 - we evaluate the full compute-quality Pareto frontier, not just stability
   prediction.
 
@@ -202,20 +223,45 @@ Our difference:
 - the paper's main object is calibrated irreversible-decision risk under
   compute budgets.
 
+### Ada-DLM, Prophet, and semantic convergence
+
+Ada-DLM pressures any claim that PhaseLock is the first to notice scalar
+criteria can miss semantic convergence. It uses confidence-trajectory features
+to identify semantically stabilized tokens and includes system-level
+optimization. Prophet pressures exact-sequence objectives from a different
+direction: task answers may converge before full sequence refinement finishes.
+
+Our difference:
+
+- existing semantic-convergence methods improve when to stop or commit;
+- PhaseLock tests whether semantic convergence predicts interventional
+  commitment safety;
+- for task settings such as math and code, report both sequence-level outcomes
+  and task-level outcomes.
+
 ### Polestar and representation-drift methods
 
 Polestar is especially important because it connects token commitment and
 cache/reuse through representation drift. This pressures any claim that
-"semantic stability implies compute safety."
+"semantic stability implies freeze safety."
 
 Our difference should be tested, not assumed:
 
 - semantic fate: token identity stability;
-- representational fate: hidden/K/V drift;
-- computational fate: final output or task invariance under compute freezing.
+- representational fate: hidden/K/V drift and cached-reference safety;
+- computational fate: runtime utility under row-wise compute removal.
 
 If experiments show these are separable, that becomes the scientific core of
 the paper.
+
+### Windowed caching and token-role systems
+
+Window-Diffusion and related cache/pruning systems already give tokens
+different computational roles such as active, buffer, cached, or far-field
+positions. PhaseLock should not claim novelty from having multiple token states
+alone. The contribution is that transitions are treated as intervention-risk
+or utility decisions: semantic lock controls commitment risk, reference freeze
+controls causal representation risk, and row removal controls runtime utility.
 
 ## Proposed Method
 
@@ -232,7 +278,7 @@ features already available from the decoding loop:
 - context volatility around the position;
 - optional lightweight hidden/K/V drift features.
 
-Then apply a staged risk controller.
+Then apply a PhaseLock controller.
 
 ### Stage 1: Candidate Routing
 
@@ -243,44 +289,67 @@ High-confidence and apparently stable positions are candidates. These are the
 positions where false confidence is dangerous and where a second risk estimate
 has the highest value.
 
-### Stage 2: Semantic Commit Gate
+### Stage 2: Semantic Lock / Commitment-Risk Gate
 
 Estimate:
 
 ```text
-r_commit(i,t) = P(x_i,t != x_i,T | trace history up to t)
+r_commit(i,t) = P(Y_commit(i,t) != Y_baseline | history up to t)
 ```
 
-Commit only if:
+Semantic-lock only if:
 
 ```text
 r_commit(i,t) <= eps_commit
 ```
 
-A committed token is no longer eligible for remasking or token replacement, but
-its representation can still be recomputed for a short delay window. This
-isolates semantic locking from systems-level compute freezing.
+A semantically locked token is no longer eligible for remasking or token
+replacement, but its representation can still be recomputed. This isolates
+token-identity intervention safety from reference-state safety and systems-level
+compute removal.
 
-### Stage 3: Representation and Compute-Freeze Gate
+### Stage 3: Reference-Freeze Risk Gate
 
-Estimate or test whether the position is safe to remove from future row-wise
-computation:
+Estimate or test whether the position is safe to expose through a cached hidden
+row or cached K/V reference:
 
 ```text
-r_repr(i,t) = P(representation remains materially useful if cached | history)
-r_compute(i,t) = P(final output changes under compute freeze | history)
+r_ref(i,t) = P(Y_reference_freeze(i,t) != Y_commit(i,t) | history, commit-safe)
 ```
 
-Compute-freeze only if:
+Reference-freeze only if:
 
 ```text
 r_commit(i,t) <= eps_commit
-r_compute(i,t) <= eps_compute
-lock_age(i) >= k
+r_ref(i,t) <= eps_ref
+semantic_lock_age(i) >= k_ref
 ```
 
-The compute-frozen token keeps cached K/V so active positions can still attend
-to it, but skips future Q-projection, attention output, and FFN row updates.
+This step freezes the state other positions see. It does not yet have to claim
+full systems speedup: the implementation may still recompute the row for
+diagnostics, delayed validation, fallback, or partial-update experiments.
+
+### Stage 4: Compute-Utility Gate
+
+Estimate whether removing the reference-frozen row from future row-wise
+computation is profitable after systems overhead:
+
+```text
+g_compute(i,t) = latency_reference_frozen - latency_row_removed
+```
+
+Compute-remove only if:
+
+```text
+r_ref(i,t) <= eps_ref
+E[g_compute(i,t) | active_rows, seq_len, batch, hardware, cache_layout] >= g_min
+```
+
+The compute-removed token keeps cached K/V so active positions can still attend
+to it, but skips future Q-projection, attention output, and FFN row updates. In
+an exact implementation this should be output-equivalent to reference freeze;
+the gate exists because sparse execution can fail to save latency after
+packing, gather/scatter, cache, and kernel overheads.
 
 ### Compact Policy Sketch
 
@@ -290,16 +359,21 @@ if confidence_i < tau_conf:
 elif cheap_stability_i is clearly unsafe:
     keep_active(i)
 else:
-    r_commit = semantic_risk_model(trace_i_up_to_t)
+    r_commit = commitment_risk_model(trace_i_up_to_t)
     if r_commit > eps_commit:
         keep_active(i)
     else:
-        commit_lock(i)
+        semantic_lock(i)
 
-        if lock_age_i >= k:
-            r_compute = compute_risk_model_or_drift_gate(trace_i_up_to_t)
-            if r_compute <= eps_compute:
-                compute_freeze(i)
+        if semantic_lock_age_i >= k_ref:
+            r_ref = reference_risk_model_or_drift_gate(trace_i_up_to_t)
+            if r_ref <= eps_ref:
+                reference_freeze(i)
+
+        if reference_frozen(i):
+            g_compute = compute_utility_model(runtime_state)
+            if g_compute >= g_min:
+                remove_row_compute(i)
 ```
 
 ## What Makes This Worth Studying
@@ -308,40 +382,45 @@ The main empirical hypothesis is not just that a learned classifier has better
 AUROC. It is:
 
 > The marginal value of expensive risk estimation is concentrated among
-> apparently safe lock candidates, and semantic safety is not sufficient for
-> compute safety.
+> apparently safe lock candidates, and token stability is not freeze safety.
 
-The core empirical test is whether observational settlement predicts the
-counterfactual effect of freezing. We should report both:
-
-```text
-P(x_i,t = x_i,T | H_t)
-```
-
-and:
+The core empirical test is whether observational settlement predicts
+interventional safety. We should report:
 
 ```text
-P(Y_freeze(i,t) = Y_baseline | H_t)
+S_i,t = 1[x_i,t = x_i,T]
+C_i,t = 1[Y_commit(i,t) = Y_baseline]
+R_i,t = 1[Y_reference_freeze(i,t) = Y_commit(i,t)]
 ```
 
-then measure where they disagree.
+Then measure the two disagreement sets:
 
-This produces three falsifiable hypotheses:
+```text
+S_i,t = 1, C_i,t = 0
+C_i,t = 1, R_i,t = 0
+```
 
-1. **A:** Some positions are semantically committed while their hidden or K/V
-   representations still move materially.
-2. **B:** Some semantically committed positions still affect neighboring tokens
-   or the final task answer under a freeze intervention.
-3. **C:** High post-commit representation drift identifies freeze-sensitive
-   positions better than matched low-drift controls.
+The first set shows observationally stable but commitment-harmful tokens. The
+second set shows commit-safe but reference-freeze-harmful tokens.
+
+This produces three scientific hypotheses and one systems proposition:
+
+1. **A:** Observational token stability does not imply commitment safety:
+   `S=1` can occur while `C=0`.
+2. **B:** Commitment safety does not imply reference-freeze safety: `C=1` can
+   occur while `R=0`.
+3. **C:** High post-commit representation drift predicts reference-freeze harm
+   beyond matched low-drift controls.
+4. **U:** Reference-freeze safety does not imply compute profitability: `R=1`
+   does not guarantee `g_compute > 0`.
 
 The method is worth building only if those hypotheses translate into useful
 engineering behavior:
 
 - selective risk estimation on lock candidates preserves most of the safety
   benefit at lower overhead than all-token prediction;
-- risk-controlled admission beats raw convergence detection at matched lock
-  rate or matched FLOP budget;
+- risk-controlled phase admission beats raw convergence detection at matched
+  semantic-lock rate, reference-freeze rate, or FLOP budget;
 - the Pareto gain concentrates where cheap criteria say "lock" but the
   interventional risk is still nontrivial.
 
@@ -358,64 +437,100 @@ Implement or approximate the strongest relevant lock criteria:
 - LESS-style confidence plus persistence plus JSD;
 - TACG-style trajectory support, if feasible;
 - TraceLock-style learned future-stability controller;
-- SureLock criterion and SureLock compute-freeze machinery;
+- SureLock criterion and SureLock cached-reference plus row-removal machinery;
 - representation-drift gate inspired by Polestar;
 - oracle semantic settlement;
-- oracle compute-freeze safety.
+- oracle commitment safety;
+- oracle reference-freeze safety;
+- oracle compute utility.
 
 The goal is not to beat weak baselines. The paper only becomes credible if it
 compares against the methods that reviewers will expect.
 
 ### Phase 1: Offline Fate Decomposition
 
-Use completed traces to label three targets.
+Use completed traces and counterfactual replays to label observational fate,
+commitment safety, reference-freeze safety, and compute utility.
 
-Semantic labels:
+Observational labels:
 
 - Does the current top-1 token equal the final token?
 - What is the earliest irreversible semantic settlement step?
 - Does a high-confidence token later change?
 
-Representational labels:
+Commitment-intervention labels:
+
+- If the token identity is committed at step `t` but full computation continues,
+  does the final sequence change?
+- Does the normalized answer or task correctness change?
+- How often does observational stability disagree with commitment safety?
+
+Reference-freeze labels:
 
 - How much do hidden states, K/V states, or logits drift after semantic
   settlement?
-- Does representation drift remain high for semantically stable tokens?
-- Which layers and positions show the largest semantic/representation gap?
-
-Computational labels:
-
-- If the token were compute-frozen at step `t`, would other tokens change?
+- If the token's hidden row or K/V reference is frozen after commitment, do
+  other tokens change?
 - Does answer correctness or generation quality change?
-- Is the effect local, suffix-wide, or global?
-- How often does `x_i,t = x_i,T` hold while `Y_freeze(i,t) != Y_baseline`?
-- How often does observational instability matter for the final task outcome?
+- Does representation drift remain high for commit-safe tokens?
+- Which layers and positions show the largest commitment/reference gap?
+
+Compute-utility labels:
+
+- Given a reference-frozen row, does removing row-wise compute produce identical
+  outputs up to numerical precision?
+- How many active rows remain per step?
+- What are the FLOP, cache-memory, packing, gather/scatter, and wall-clock gains
+  under the target batch and sequence regimes?
 
 This phase should produce the core scientific figure:
 
 ```text
-semantic convergence != representational convergence != compute dispensability
+observational stability != commitment safety != reference-freeze safety
+reference-freeze safety != compute profitability
 ```
 
-### Phase 2: Lock-Risk Pareto Evaluation
+### Phase 2: Four-Arm Counterfactual Audit
+
+For high-confidence candidate token-steps, replay from the same state under
+four interventions:
+
+```text
+A0 = baseline
+A1 = token identity committed, representation still updated
+A2 = token identity committed + hidden/K/V reference frozen
+A3 = token identity committed + hidden/K/V reference frozen + row compute removed
+```
+
+Use `A0` versus `A1` to measure commitment risk, `A1` versus `A2` to measure
+incremental reference-freeze risk, and `A2` versus `A3` to verify whether row
+removal is output-equivalent once references are exact. If `A2` and `A3`
+match up to numerical precision, do not define a separate compute quality-risk
+estimator; keep only the compute-utility gate.
+
+Report exact sequence change, non-target token change count, normalized answer
+change, correctness change, next-step logit divergence, and terminal logit
+divergence.
+
+### Phase 3: Selective Risk-Control Evaluation
 
 For each candidate method, plot:
 
 ```text
-x-axis: fraction of token-step FLOPs eliminated
-y-axis: P(future token change | locked)
+coverage / semantic-lock rate vs empirical commitment-intervention risk
+coverage / reference-freeze rate vs empirical reference-freeze risk
 ```
 
 Also plot:
 
 ```text
 x-axis: lock rate or estimated FLOPs saved
-y-axis: premature-lock rate, lock precision, and settlement delay
+y-axis: empirical risk-budget violation rate
 ```
 
 The high-confidence disagreement subset should be explicit: token-steps where
-confidence is high, but the current token still differs from the final token.
-Evaluate how well each method finds or avoids these dangerous positions.
+confidence is high and cheap criteria invite locking, but the intervention
+fails.
 
 ```text
 semantic_miss_set = {
@@ -423,22 +538,24 @@ semantic_miss_set = {
 }
 ```
 
-Also construct the compute-safety disagreement subset: token-steps where the
-current token already matches the final token, but freezing that position
-changes the baseline output. This subset is the direct evidence for B. If it is
-large or structured, semantic settlement is insufficient for compute locking.
+Also construct the two intervention disagreement subsets:
 
 ```text
-compute_disagreement_set = {
-  (i,t): x_i,t = x_i,T and Y_freeze(i,t) != Y_baseline
+commitment_false_safety_set = {
+  (i,t): x_i,t = x_i,T and Y_commit(i,t) != Y_baseline
+}
+
+reference_false_safety_set = {
+  (i,t): Y_commit(i,t) = Y_baseline
+         and Y_reference_freeze(i,t) != Y_commit(i,t)
 }
 ```
 
-### Phase 3: Commit-Lock Decoder
+### Phase 4: Semantic-Lock Decoder
 
-Modify the decoding loop so committed tokens stay fixed but still receive full
-model computation. This tests the semantic decision before adding systems
-complexity.
+Modify the decoding loop so semantically locked tokens stay fixed but still
+receive full model computation. This tests the semantic decision before adding
+reference-cache or compute-lock systems complexity.
 
 Report:
 
@@ -449,10 +566,24 @@ Report:
 - premature-lock diagnostics by confidence slice;
 - quality at matched lock rate.
 
-### Phase 4: Compute-Freeze Proxy
+### Phase 5: Reference-Freeze Proxy
 
-Before writing custom kernels, simulate the compute path from active-set
-trajectories.
+Before writing custom kernels, intervene on cached hidden rows or K/V states to
+test whether semantically locked tokens can safely become fixed references.
+This phase should estimate stale-reference risk without claiming wall-clock
+speedup.
+
+Report:
+
+- non-target token changes under cached-reference interventions;
+- normalized-answer changes under cached-reference interventions;
+- drift quantiles before reference lock;
+- matched high-drift versus low-drift control effects.
+
+### Phase 6: Compute-Utility Proxy
+
+After reference-freeze safety is plausible, simulate the compute path from
+active-set trajectories.
 
 Estimate:
 
@@ -463,13 +594,14 @@ Estimate:
 - gather/scatter and packing overhead;
 - expected speedup under realistic batch and sequence regimes.
 
-This phase decides whether a real compute-lock implementation is justified.
+This phase decides whether a real row-removal implementation is justified.
 
-### Phase 5: End-to-End Compute-Freeze Decoder
+### Phase 7: End-to-End Row-Removal Decoder
 
-Implement the full compute-freeze path only after semantic and proxy results
-are strong. Reuse the SureLock-style mechanism: locked tokens keep cached K/V,
-while active tokens attend to all positions.
+Implement the full row-removal path only after semantic-lock and
+reference-freeze proxy results are strong. Reuse the SureLock-style mechanism:
+compute-removed tokens keep cached K/V, while active tokens attend to all
+positions.
 
 Primary end-to-end plots:
 
@@ -493,11 +625,12 @@ stronger.
 
 Safety:
 
-- `P(future_change | locked)`;
-- `P(answer_changes | locked)`;
+- `P(Y_commit != Y_baseline | semantic-locked)`;
+- `P(Y_reference_freeze != Y_commit | reference-frozen)`;
 - non-target token change rate after intervention;
-- lock precision and recall;
-- calibration error for `r_commit` and `r_compute`;
+- normalized-answer change rate and task-correctness change rate;
+- sequence-level versus task-level intervention safety;
+- calibration error for `r_commit` and `r_ref`;
 - risk-budget violation rate.
 
 Efficiency:
@@ -506,6 +639,7 @@ Efficiency:
 - algorithmic FLOPs;
 - wall-clock latency;
 - throughput;
+- compute utility `g_compute`;
 - predictor overhead;
 - memory overhead from caching.
 
@@ -522,10 +656,15 @@ Quality:
 
 - Selective fate model on high-confidence candidates vs all-token fate model.
 - Confidence threshold: fixed, percentile, or calibrated risk threshold.
-- Commit risk threshold `eps_commit`.
-- Compute risk threshold `eps_compute`.
-- Immediate compute freeze vs delayed freeze after `k` committed steps.
-- Semantic-only gate vs semantic plus representation-drift gate.
+- Commitment risk threshold `eps_commit`.
+- Reference risk threshold `eps_ref`.
+- Compute utility threshold `g_min`.
+- Immediate reference freeze vs delayed reference freeze after `k_ref` semantic-lock
+  steps.
+- Immediate row removal vs delayed row removal after reference freeze.
+- Semantic-only gate vs semantic plus reference-drift gate vs full PhaseLock
+  with compute-utility gating.
+- Reference freeze without row removal vs reference freeze plus row removal.
 - Trace-only features vs trace plus hidden/K/V drift features.
 - Training-free stability criteria vs learned risk models.
 - Calibration method: raw score, isotonic calibration, conformal threshold, or
@@ -540,19 +679,22 @@ to establish the scientific and algorithmic claim.
 
 Minimum evidence:
 
-1. High-confidence false locks exist and are not fully captured by confidence,
-   KL/JSD, or persistence.
-2. Selective risk estimation reduces premature locks at matched lock rate or
-   matched estimated compute.
-3. Semantic convergence and representation convergence diverge in measurable
-   cases.
-4. A staged commit-then-compute-freeze policy dominates immediate compute
-   freeze on a safety-efficiency Pareto curve.
-5. Active-set simulations show enough compute savings to justify systems work.
+1. Observationally stable tokens that are commitment-harmful exist at a
+   nontrivial rate, or observational instability is shown to be too conservative
+   for task-level safety.
+2. Commit-safe tokens that are reference-freeze-harmful exist at a nontrivial
+   rate.
+3. Representation drift predicts reference-freeze harm beyond matched controls.
+4. Selective risk control reduces commitment and reference-freeze failures at
+   matched lock/freeze coverage.
+5. `A2` reference-freeze and `A3` row-removal outputs match up to numerical
+   precision under an exact implementation, validating compute utility as a
+   systems gate.
+6. Active-set simulations show enough compute utility to justify systems work.
 
 Stronger systems paper:
 
-1. Implement full compute freeze with cached K/V.
+1. Implement full row removal with cached K/V.
 2. Match or improve SureLock quality at similar FLOPs.
 3. Save more FLOPs or latency at the same quality drop.
 4. Demonstrate gains on more than one dLLM family.
@@ -568,32 +710,38 @@ That is too close to learned future-stability commitment work.
 Use this claim:
 
 > Locking is a risk-sensitive irreversible decision. We separate semantic,
-> representational, and computational fate, then allocate expensive risk
-> estimation only to lock candidates where cheap convergence signals are
+> reference-freeze, and compute-utility decisions, then allocate expensive risk
+> estimation only to the intervention phases where cheap convergence signals are
 > unreliable.
 
 The sharper title-level contribution is:
 
-> Semantic stability is not compute stability.
+> Token stability is not freeze safety.
 
-If experiments support that sentence, the project becomes more than a decoder
-heuristic.
+The secondary systems sentence is:
+
+> Freeze safety is not compute profitability.
+
+If experiments support those sentences, the project becomes more than a decoder
+heuristic or another commitment score.
 
 ## Risks
 
 - **Related-work crowding.** TraceLock, trajectory-aware commitment methods,
-  LESS-style mutual stability, SureLock, and Polestar all occupy nearby space.
-  The paper needs a risk-control and fate-decomposition contribution, not just
-  another commitment score.
+  LESS-style mutual stability, Ada-DLM, Prophet, Window-Diffusion, SureLock,
+  and Polestar all occupy nearby space. The paper needs an intervention-risk
+  and utility-gating contribution, not just another commitment score or token
+  state taxonomy.
 
 - **Existing diagnostic AUROC is not enough.** The `+0.0174` AUROC and
   `+0.0124` AP high-confidence result motivates the idea but cannot be the
   headline. Reviewers will care about quality at fixed compute or compute at
   fixed quality.
 
-- **Compute-risk labels are expensive.** Measuring whether compute-freezing one
-  token changes the final sequence can require counterfactual decoding. Start
-  with a small candidate set and proxy labels based on representation drift.
+- **Commitment- and reference-risk labels are expensive.** Measuring whether a
+  semantic lock or cached reference changes the final sequence can require
+  counterfactual decoding. Start with a small candidate set and proxy labels
+  based on representation drift.
 
 - **Predictor overhead can erase savings.** The learned model must be small and
   selectively invoked. Otherwise a training-free criterion may win in practice.
@@ -603,17 +751,26 @@ heuristic.
 
 ## Immediate Next Experiment
 
-Build the offline lock-risk Pareto plot before implementing a new decoder.
+Run the four-arm counterfactual audit before implementing a new decoder.
 
-For each method, evaluate:
+For each high-confidence candidate token-step, compare:
 
 ```text
-P(future_change | locked)
-vs
-fraction of token-step FLOPs eliminated
+A0 = baseline
+A1 = semantic lock, full representation updates
+A2 = semantic lock + reference freeze
+A3 = semantic lock + reference freeze + row removal
 ```
 
-Methods:
+This directly estimates:
+
+```text
+A0 vs A1: commitment risk
+A1 vs A2: reference-freeze risk
+A2 vs A3: output equivalence of row removal after exact reference freeze
+```
+
+Then fit or compare risk policies:
 
 - confidence;
 - KL;
@@ -622,10 +779,13 @@ Methods:
 - JSD/persistence-style stability;
 - SureLock criterion;
 - TraceLock-style learned semantic fate;
-- selective semantic fate on high-confidence candidates;
-- semantic plus representation-drift gate;
+- selective commitment-risk model on high-confidence candidates;
+- semantic lock plus representation-drift reference-freeze gate;
+- full PhaseLock: commitment-risk gate plus reference-risk gate plus
+  compute-utility gate;
 - oracle semantic settlement;
-- oracle compute safety.
+- oracle commitment safety;
+- oracle reference-freeze safety.
 
 If selective risk control does not dominate on this plot, the idea should be
 rethought before any systems implementation.
@@ -634,8 +794,20 @@ rethought before any systems implementation.
 
 - SureLock: <https://daioba.github.io/surelock/>
 - SureLock arXiv: <https://arxiv.org/abs/2602.06412>
-- TraceLock / learned token-commitment policy: verify latest public version
-  before citation.
-- LESS: <https://www.alphaxiv.org/overview/2606.16908>
-- TACG: <https://www.emergentmind.com/papers/2607.03236>
-- Polestar: <https://papers.cool/arxiv/2607.14107>
+- TraceLock / learned token-commitment policy:
+  <https://arxiv.org/abs/2605.24697>
+- Ada-DLM / semantic-aware adaptive denoising:
+  <https://aclanthology.org/2026.acl-long.819/>
+- Prophet / early answer convergence:
+  <https://proceedings.iclr.cc/paper_files/paper/2026/hash/daadbff4d4ea884ca3d9d389a1dfc61c-Abstract-Conference.html>
+- Window-Diffusion:
+  <https://arxiv.org/abs/2601.20332>
+- LESS: <https://arxiv.org/abs/2606.16908>
+- TACG: <https://arxiv.org/abs/2607.03236>
+- Polestar: <https://arxiv.org/abs/2607.14107>
+- Deferred Commitment Decoding: <https://arxiv.org/abs/2601.02076>
+- CoCommit: <https://arxiv.org/abs/2607.04469>
+- Fast-dLLM: <https://arxiv.org/abs/2505.22618>
+- dKV-Cache: <https://arxiv.org/abs/2505.15781>
+- dLLM-Cache: <https://arxiv.org/abs/2506.06295>
+- d2Cache: <https://arxiv.org/abs/2509.23094>
