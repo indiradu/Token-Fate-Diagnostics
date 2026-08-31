@@ -1,0 +1,8 @@
+{
+  "mode": "commit",
+  "runs": 2,
+  "total_pairs": 416,
+  "pairs_with_eos_eot": 0,
+  "bootstrap_reps": 10000,
+  "bootstrap_unit": "example_id clusters"
+}

@@ -1,0 +1,31 @@
+{
+  "run_dir": "results/settlement_fate_a_premise_math500_100x3_20260831",
+  "examples": 100,
+  "tokens": 6200,
+  "steps": 64,
+  "gen_length": 64,
+  "bootstrap_unit": "example_id clusters",
+  "caveats": [
+    "Phase-6 proxy: token-step row updates avoided, not wall-clock.",
+    "Freeze-to-base policies only; freeze-to-current-state is unquantifiable from this data.",
+    "Freeze-vs-remove output equivalence (A2 vs A3 arms) untested.",
+    "Harm panel is exploratory: labels come from immediate-freeze interventions on a top-drift-biased sample.",
+    "No drift trajectories exist for the gen-256 runs (--skip-drift-time-rows); this analysis covers gen=64 only."
+  ],
+  "semantic_vs_drift_timing": {
+    "tokens": 6400,
+    "tokens_with_semantic_stability_before_commit": 6400,
+    "tokens_drift_settled_tau0.3_k2": 4146,
+    "mean_semantic_lead_steps": 9.93265625,
+    "semantic_lead_ci": [
+      9.5017578125,
+      10.357234374999999
+    ],
+    "mean_drift_settle_lag_steps_after_commit": 2.047515677761698,
+    "drift_lag_ci": [
+      2.027953123676965,
+      2.0700442033984774
+    ],
+    "note": "semantic stability arrives before commit; drift settlement arrives after \u2014 the gap is compute a drift-safe gate forfeits relative to a semantic-only gate."
+  }
+}

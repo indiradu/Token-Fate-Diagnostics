@@ -1,0 +1,75 @@
+{
+  "examples": 100,
+  "committed_tokens": 6400,
+  "tokens_with_post_commit_state": 6300,
+  "tokens_with_drift_measurement": 6200,
+  "semantic_safe_rate": 1.0,
+  "mean_max_drift": 0.5115342946180078,
+  "median_max_drift": 0.44961053133010864,
+  "interventions": 600,
+  "latency_s": 2633.296543075703,
+  "config": {
+    "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+    "dataset": "math500",
+    "split": "test",
+    "limit": 100,
+    "offset": 167,
+    "jsonl_path": null,
+    "output_dir": "results/settlement_fate_c_premise_math500_100x3_20260831",
+    "steps": 64,
+    "gen_length": 64,
+    "block_length": 32,
+    "cpv_window": 4,
+    "layers": "16,24,32",
+    "max_interventions_per_example": 3,
+    "intervention_mode": "clamp",
+    "commit_min_lead": 4,
+    "commit_min_confidence": 0.5,
+    "exclude_eos_eot": true,
+    "skip_interventions": false,
+    "empty_cache": true,
+    "dtype": "bf16",
+    "device": "cuda"
+  },
+  "intervention_group_summary": [
+    {
+      "intervention_group": "semantic_safe_high_drift",
+      "candidates": 300,
+      "mean_max_drift": 0.9322624790668488,
+      "target_token_change_rate": 0.0,
+      "non_target_token_change_rate": 0.24666666666666667,
+      "mean_non_target_token_change_count": 3.3333333333333335,
+      "answer_correct_change_rate": 0.02,
+      "normalized_answer_change_rate": 0.10666666666666667,
+      "replay_match_rate": 1.0
+    },
+    {
+      "intervention_group": "semantic_safe_matched_low_drift",
+      "candidates": 300,
+      "mean_max_drift": 0.36558675027555887,
+      "target_token_change_rate": 0.0,
+      "non_target_token_change_rate": 0.21333333333333335,
+      "mean_non_target_token_change_count": 2.1966666666666668,
+      "answer_correct_change_rate": 0.01,
+      "normalized_answer_change_rate": 0.09333333333333334,
+      "replay_match_rate": 1.0
+    }
+  ],
+  "paired_complete_pairs": 300,
+  "paired_target_minus_control_non_target_change_rate": 0.03333333333333333,
+  "paired_target_minus_control_mean_non_target_count": 1.1366666666666667,
+  "paired_mean_shared_non_target_change_count": 0.9666666666666667,
+  "paired_mean_target_unique_non_target_change_count": 2.3666666666666667,
+  "paired_target_minus_control_answer_change_rate": 0.01,
+  "paired_target_minus_control_normalized_answer_change_rate": 0.013333333333333334,
+  "semantic_drift_summary": [
+    {
+      "semantic_safe": 1,
+      "tokens": 6200,
+      "mean_selected_confidence": 0.8725545586549467,
+      "mean_max_drift": 0.519784847757008,
+      "median_max_drift": 0.4534223973751068,
+      "p90_max_drift": 0.8560844838619233
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "mode": "clamp",
+  "runs": 1,
+  "total_pairs": 80,
+  "pairs_with_eos_eot": 0,
+  "bootstrap_reps": 10000,
+  "bootstrap_unit": "example_id clusters"
+}

@@ -1,0 +1,15 @@
+{
+  "run_dir": "results/settlement_fate_c_premise_math500_100x3_20260831",
+  "examples": 100,
+  "tokens": 6200,
+  "steps": 64,
+  "gen_length": 64,
+  "bootstrap_unit": "example_id clusters",
+  "caveats": [
+    "Phase-6 proxy: token-step row updates avoided, not wall-clock.",
+    "Freeze-to-base policies only; freeze-to-current-state is unquantifiable from this data.",
+    "Freeze-vs-remove output equivalence (A2 vs A3 arms) untested.",
+    "Harm panel is exploratory: labels come from immediate-freeze interventions on a top-drift-biased sample.",
+    "No drift trajectories exist for the gen-256 runs (--skip-drift-time-rows); this analysis covers gen=64 only."
+  ]
+}

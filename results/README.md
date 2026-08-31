@@ -19,6 +19,28 @@ and can contain complete model generations.
 | `logit_lens_suite_30_r3/` | layer and slice summaries plus attention-probe results | Mechanistic logit-lens and attention diagnostics. |
 | `token_fate_layerwise_wide_30_r2/probes/` | aggregate layerwise probe metrics and fate summaries | Hidden-state probe comparison. |
 
+## PhaseLock Premise Audit (2026-08-31 / 09-01)
+
+Counterfactual audit of the three PhaseLock gates. `commit` runs force an
+observationally stable token to lock early against a same-position late-commit
+control (premise A); `clamp` runs freeze a committed token's hidden row against
+a drift-matched same-trajectory control (premises B and C). All runs exclude
+EOS/EOT candidates and use disjoint example offsets.
+
+| Directory | Contents | Role in the study |
+| --- | --- | --- |
+| `settlement_fate_a_premise_math500_40x3_20260831/` | commit-arm summary, run config | Premise A, mixed MATH500, gen 64, 120 pairs. |
+| `settlement_fate_a_premise_math500_100x3_20260831/` | commit-arm summary, run config | Premise A replication, 296 pairs; paired deltas are zero. |
+| `settlement_fate_a_premise_math500l5_40x3_g256_20260831/` | commit-arm summary, run config | Premise A, level-5 gen 256; null, but candidate confidence is higher by construction. |
+| `settlement_fate_c_premise_math500_100x3_20260831/` | clamp-arm summary, run config | Premises B and C, mixed MATH500, gen 64, 300 pairs. |
+| `settlement_fate_c_premise_math500l5_40x2_g256_20260831/` | clamp-arm summary, run config | Premises B and C, level-5 gen 256, 80 pairs; the run where C resolves. |
+| `settlement_pairs_a_pooled_20260831/` | example-clustered bootstrap and sign tests | Pooled premise-A effect: `+0.7` pp non-target change, 95% CI `[0.0, +1.7]`. |
+| `settlement_pairs_c100x3_20260831/` | example-clustered bootstrap and sign tests | Premise C at gen 64: `+3.3` pp, 95% CI `[-2.0, +8.7]`, unresolved. |
+| `settlement_pairs_c_l5_g256_20260831/` | example-clustered bootstrap and sign tests | Premise C at level-5 gen 256: `+25.0` pp, 95% CI `[+12.5, +37.5]`, sign test `p = 0.0002`. |
+| `settlement_pairs_a_l5_g256_20260831/` | example-clustered bootstrap | Premise A at level-5 gen 256; all deltas exactly zero. |
+| `compute_utility_proxy_c100x3_20260831/` | drift-gate policy sweep, harm-by-drift bins | Premise U: freeze-at-commit ceiling `20.8%` of row updates; `tau=0.3` keeps `13.7%`. |
+| `compute_utility_proxy_a100x3_20260831/` | drift-gate policy sweep, settlement timing | Independent replication of the sweep plus semantic-vs-drift settlement times. |
+
 Every strict-intervention directory includes its aggregate group summary and
 paired bootstrap comparisons where applicable.
 

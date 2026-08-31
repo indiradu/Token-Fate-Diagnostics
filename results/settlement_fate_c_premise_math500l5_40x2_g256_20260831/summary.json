@@ -1,0 +1,76 @@
+{
+  "examples": 40,
+  "committed_tokens": 10240,
+  "tokens_with_post_commit_state": 10200,
+  "tokens_with_drift_measurement": 10160,
+  "semantic_safe_rate": 1.0,
+  "mean_max_drift": 0.661431561322895,
+  "median_max_drift": 0.5162635693947474,
+  "interventions": 160,
+  "latency_s": 4610.6293915999995,
+  "config": {
+    "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+    "dataset": "math500",
+    "split": "test",
+    "limit": 40,
+    "offset": 40,
+    "jsonl_path": "data/math500_level5.jsonl",
+    "output_dir": "results/settlement_fate_c_premise_math500l5_40x2_g256_20260831",
+    "steps": 256,
+    "gen_length": 256,
+    "block_length": 32,
+    "cpv_window": 4,
+    "layers": "16,24,32",
+    "max_interventions_per_example": 2,
+    "intervention_mode": "clamp",
+    "commit_min_lead": 4,
+    "commit_min_confidence": 0.5,
+    "exclude_eos_eot": true,
+    "skip_interventions": false,
+    "skip_drift_time_rows": true,
+    "empty_cache": true,
+    "dtype": "bf16",
+    "device": "cuda"
+  },
+  "intervention_group_summary": [
+    {
+      "intervention_group": "semantic_safe_high_drift",
+      "candidates": 80,
+      "mean_max_drift": 4.960388016700745,
+      "target_token_change_rate": 0.0,
+      "non_target_token_change_rate": 0.5375,
+      "mean_non_target_token_change_count": 48.7875,
+      "answer_correct_change_rate": 0.025,
+      "normalized_answer_change_rate": 0.1875,
+      "replay_match_rate": 1.0
+    },
+    {
+      "intervention_group": "semantic_safe_matched_low_drift",
+      "candidates": 80,
+      "mean_max_drift": 0.41733735023687285,
+      "target_token_change_rate": 0.0,
+      "non_target_token_change_rate": 0.2875,
+      "mean_non_target_token_change_count": 20.6125,
+      "answer_correct_change_rate": 0.0,
+      "normalized_answer_change_rate": 0.05,
+      "replay_match_rate": 1.0
+    }
+  ],
+  "paired_complete_pairs": 80,
+  "paired_target_minus_control_non_target_change_rate": 0.25,
+  "paired_target_minus_control_mean_non_target_count": 28.175,
+  "paired_mean_shared_non_target_change_count": 13.475,
+  "paired_mean_target_unique_non_target_change_count": 35.3125,
+  "paired_target_minus_control_answer_change_rate": 0.025,
+  "paired_target_minus_control_normalized_answer_change_rate": 0.1375,
+  "semantic_drift_summary": [
+    {
+      "semantic_safe": 1,
+      "tokens": 10160,
+      "mean_selected_confidence": 0.903750184355817,
+      "mean_max_drift": 0.6640356225879457,
+      "median_max_drift": 0.5173995494842529,
+      "p90_max_drift": 0.9608486195405325
+    }
+  ]
+}

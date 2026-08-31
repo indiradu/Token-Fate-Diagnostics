@@ -1,0 +1,23 @@
+{
+  "block_length": 32,
+  "commit_min_confidence": 0.5,
+  "commit_min_lead": 4,
+  "cpv_window": 4,
+  "dataset": "math500",
+  "device": "cuda",
+  "dtype": "bf16",
+  "empty_cache": true,
+  "exclude_eos_eot": true,
+  "gen_length": 64,
+  "intervention_mode": "clamp",
+  "jsonl_path": null,
+  "layers": "16,24,32",
+  "limit": 100,
+  "max_interventions_per_example": 3,
+  "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+  "offset": 167,
+  "output_dir": "results/settlement_fate_c_premise_math500_100x3_20260831",
+  "skip_interventions": false,
+  "split": "test",
+  "steps": 64
+}

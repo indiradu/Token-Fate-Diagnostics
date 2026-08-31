@@ -1,0 +1,17 @@
+slice,pairs,examples,metric,mean_delta,ci_low,ci_high,sign_positive,sign_negative,sign_p_value
+a40x3,120,40,delta_non_target_changed,0.025,0.0,0.058333333333333334,3,0,0.25
+a40x3,120,40,delta_non_target_change_count,0.1,0.0,0.225,3,0,0.25
+a40x3,120,40,delta_normalized_answer_changed,0.016666666666666666,0.0,0.041666666666666664,2,0,0.5
+a40x3,120,40,delta_answer_changed,0.0,0.0,0.0,0,0,
+a100x3,296,99,delta_non_target_changed,0.0,0.0,0.0,0,0,
+a100x3,296,99,delta_non_target_change_count,0.02702702702702703,0.0,0.08163265306122448,1,0,1.0
+a100x3,296,99,delta_normalized_answer_changed,0.0,0.0,0.0,0,0,
+a100x3,296,99,delta_answer_changed,0.0,0.0,0.0,0,0,
+pooled,416,139,delta_non_target_changed,0.007211538461538462,0.0,0.016786570743405275,3,0,0.25
+pooled,416,139,delta_non_target_change_count,0.04807692307692308,0.007194244604316547,0.10551558752997602,4,0,0.125
+pooled,416,139,delta_normalized_answer_changed,0.004807692307692308,0.0,0.01201923076923077,2,0,0.5
+pooled,416,139,delta_answer_changed,0.0,0.0,0.0,0,0,
+pooled (no EOS/EOT),416,139,delta_non_target_changed,0.007211538461538462,0.0,0.016786570743405275,3,0,0.25
+pooled (no EOS/EOT),416,139,delta_non_target_change_count,0.04807692307692308,0.007194244604316547,0.10551558752997602,4,0,0.125
+pooled (no EOS/EOT),416,139,delta_normalized_answer_changed,0.004807692307692308,0.0,0.01201923076923077,2,0,0.5
+pooled (no EOS/EOT),416,139,delta_answer_changed,0.0,0.0,0.0,0,0,
