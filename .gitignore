@@ -21,6 +21,7 @@ results/**
 # separate public release is appropriate.
 paper/
 cluster/
+slurm_logs/
 scripts/make_paper_figures.py
 
 # Superseded pilot notes are kept locally but are not part of the paper-facing

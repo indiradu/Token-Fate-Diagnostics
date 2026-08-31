@@ -22,6 +22,8 @@ from regret_remasking import FEATURE_NAMES
 from regret_remasking.data import build_prompt, load_examples, normalize_answer, score_generation
 from regret_remasking.features import entropy_from_log_probs, local_window_average, safe_jsd, safe_kl
 from regret_remasking.llada_trace import (
+    EOS_ID,
+    EOT_ID,
     DecodeConfig,
     add_gumbel_noise,
     get_num_transfer_tokens,
@@ -118,36 +120,54 @@ def update_committed_drift(
     captured: dict[int, torch.Tensor],
     layers: list[int],
     global_step: int,
-    time_rows: list[dict[str, Any]],
+    time_rows: list[dict[str, Any]] | None,
 ) -> None:
-    for token in committed.values():
-        if global_step <= token.selected_step:
-            continue
+    pending = [token for token in committed.values() if global_step > token.selected_step]
+    tracked: list[CommittedToken] = []
+    for token in pending:
         if token.base_step is None:
             token.base_step = global_step
             for layer in layers:
                 token.base_hidden[layer] = captured[layer][0, token.position].detach().float().cpu()
                 token.max_drift_by_layer[layer] = 0.0
                 token.final_drift_by_layer[layer] = 0.0
-            continue
+        else:
+            tracked.append(token)
+    if not tracked:
+        return
+    for token in tracked:
         token.future_steps_observed += 1
-        for layer in layers:
-            drift = relative_l2(captured[layer][0, token.position], token.base_hidden[layer])
+    # One device sync per layer per step instead of one per token; the math
+    # matches relative_l2 row-wise (float32 on CPU, eps-clamped base norm).
+    position_index = torch.as_tensor(
+        [token.position for token in tracked],
+        dtype=torch.long,
+        device=captured[layers[0]].device,
+    )
+    for layer in layers:
+        current = captured[layer][0].index_select(0, position_index).detach().float().cpu()
+        base = torch.stack([token.base_hidden[layer] for token in tracked])
+        diff_norm = torch.linalg.vector_norm(current - base, dim=1)
+        base_norm = torch.clamp(torch.linalg.vector_norm(base, dim=1), min=1e-6)
+        drifts = (diff_norm / base_norm).tolist()
+        for token, drift in zip(tracked, drifts):
+            drift = float(drift)
             token.final_drift_by_layer[layer] = drift
             token.max_drift_by_layer[layer] = max(token.max_drift_by_layer.get(layer, 0.0), drift)
-            time_rows.append(
-                {
-                    "example_id": token.example_id,
-                    "dataset": token.dataset,
-                    "position": token.position,
-                    "relative_position": token.relative_position,
-                    "selected_step": token.selected_step,
-                    "base_step": token.base_step,
-                    "global_step": global_step,
-                    "layer": layer,
-                    "relative_l2_drift": drift,
-                }
-            )
+            if time_rows is not None:
+                time_rows.append(
+                    {
+                        "example_id": token.example_id,
+                        "dataset": token.dataset,
+                        "position": token.position,
+                        "relative_position": token.relative_position,
+                        "selected_step": token.selected_step,
+                        "base_step": token.base_step,
+                        "global_step": global_step,
+                        "layer": layer,
+                        "relative_l2_drift": drift,
+                    }
+                )
 
 
 @torch.no_grad()
@@ -157,6 +177,7 @@ def collect_baseline_audit(
     example: Any,
     config: DecodeConfig,
     layers: list[int],
+    collect_time_rows: bool = True,
 ) -> dict[str, Any]:
     device = model_device(model)
     captured, handles = register_layer_hooks(model, layers)
@@ -180,6 +201,7 @@ def collect_baseline_audit(
         runlength = torch.zeros_like(x, dtype=torch.float32)
         committed: dict[int, CommittedToken] = {}
         time_rows: list[dict[str, Any]] = []
+        proposal_rows: list[dict[str, Any]] = []
         nfe = 0
 
         for block_idx in range(num_blocks):
@@ -195,7 +217,9 @@ def collect_baseline_audit(
                 outputs = model(x, attention_mask=attention_mask)
                 logits = outputs.logits
                 nfe += 1
-                update_committed_drift(committed, captured, layers, global_step, time_rows)
+                update_committed_drift(
+                    committed, captured, layers, global_step, time_rows if collect_time_rows else None
+                )
                 x0, log_probs, runlength, feature_map = decode_step_features(
                     logits,
                     x,
@@ -213,6 +237,28 @@ def collect_baseline_audit(
                 x0 = torch.where(mask_index, x0, x)
                 score = torch.full_like(confidence, fill_value=-torch.inf)
                 score[allowed] = confidence[allowed]
+
+                # Pre-transfer proposal ledger: what each still-masked, in-block
+                # position proposes at this step. Used offline to label
+                # observational stability S_i,t = 1[top1_i,t == final_i].
+                allowed_positions = torch.nonzero(allowed[0], as_tuple=False).flatten()
+                if allowed_positions.numel() > 0:
+                    proposal_tokens = x0[0, allowed_positions].detach().cpu().tolist()
+                    proposal_confidences = confidence[0, allowed_positions].detach().cpu().tolist()
+                    for pos, top_token, conf in zip(
+                        allowed_positions.tolist(), proposal_tokens, proposal_confidences
+                    ):
+                        proposal_rows.append(
+                            {
+                                "example_id": example.example_id,
+                                "dataset": example.dataset,
+                                "position": int(pos),
+                                "relative_position": int(pos - prompt_len),
+                                "global_step": global_step,
+                                "top_token": int(top_token),
+                                "confidence": float(conf),
+                            }
+                        )
 
                 transfer_index = torch.zeros_like(x, dtype=torch.bool)
                 k = int(num_transfer_tokens[0, step_in_block].item())
@@ -256,6 +302,7 @@ def collect_baseline_audit(
             "nfe": nfe,
             "committed": list(committed.values()),
             "time_rows": time_rows,
+            "proposal_rows": proposal_rows,
         }
     finally:
         for handle in handles:
@@ -297,6 +344,7 @@ def committed_rows(baseline: dict[str, Any], layers: list[int]) -> list[dict[str
 def choose_drift_candidates(
     drift_df: pd.DataFrame,
     per_example: int,
+    exclude_eos_eot: bool = False,
 ) -> pd.DataFrame:
     eligible = drift_df[
         drift_df["semantic_safe"].eq(1)
@@ -304,6 +352,11 @@ def choose_drift_candidates(
         & drift_df["max_drift_mean"].notna()
         & (drift_df["future_steps_observed"] > 0)
     ].copy()
+    if exclude_eos_eot:
+        # EOS/EOT rows drift far more than body tokens and flood the high-drift
+        # arm while being inert under the clamp; excluding them keeps the
+        # high-vs-low contrast about answer-body tokens.
+        eligible = eligible[~eligible["selected_token"].isin([EOS_ID, EOT_ID])].copy()
     if eligible.empty:
         return pd.DataFrame()
     rows = []
@@ -538,6 +591,377 @@ def clamp_intervention_decode(
             handle.remove()
 
 
+def choose_commit_candidates(
+    proposal_df: pd.DataFrame,
+    drift_df: pd.DataFrame,
+    per_example: int,
+    min_lead: int,
+    min_confidence: float,
+    exclude_eos_eot: bool = True,
+) -> pd.DataFrame:
+    """Select observationally stable (S=1) token-steps for early forced commits.
+
+    For each position the target is the earliest stable step with commit lead
+    >= min_lead; the paired control is the same position forced at the latest
+    stable step before its natural commit (schedule-perturbation floor).
+    Conditioning on S uses final tokens by design: hypothesis A measures
+    P(commit harm | S=1); this is offline fate decomposition, not a selector.
+    """
+    if proposal_df.empty or drift_df.empty:
+        return pd.DataFrame()
+    commits = drift_df[
+        ["example_id", "position", "relative_position", "selected_step", "selected_token", "final_token"]
+    ].copy()
+    merged = proposal_df.merge(commits, on=["example_id", "position", "relative_position"], how="inner")
+    merged = merged[merged["global_step"] < merged["selected_step"]].copy()
+    merged["stable"] = merged["top_token"] == merged["final_token"]
+    merged["lead"] = merged["selected_step"] - merged["global_step"]
+    rows: list[dict[str, Any]] = []
+    for example_id, group in merged.groupby("example_id", sort=False):
+        ranked: list[dict[str, Any]] = []
+        for position, pos_group in group.groupby("position", sort=False):
+            pos_group = pos_group.sort_values("global_step", kind="mergesort")
+            final_token = int(pos_group["final_token"].iloc[0])
+            if exclude_eos_eot and final_token in (EOS_ID, EOT_ID):
+                continue
+            stable_rows = pos_group[pos_group["stable"]]
+            eligible = stable_rows[
+                (stable_rows["lead"] >= min_lead) & (stable_rows["confidence"] >= min_confidence)
+            ]
+            if eligible.empty:
+                continue
+            early = eligible.iloc[0]
+            late_pool = stable_rows[stable_rows["global_step"] > int(early["global_step"])]
+            if late_pool.empty:
+                continue
+            late = late_pool.iloc[-1]
+            window = pos_group[pos_group["global_step"] >= int(early["global_step"])]
+            ranked.append(
+                {
+                    "example_id": example_id,
+                    "dataset": str(pos_group["dataset"].iloc[0]),
+                    "position": int(position),
+                    "relative_position": int(pos_group["relative_position"].iloc[0]),
+                    "selected_step": int(pos_group["selected_step"].iloc[0]),
+                    "selected_token": int(pos_group["selected_token"].iloc[0]),
+                    "final_token": final_token,
+                    "forced_token": final_token,
+                    "is_eos_eot": final_token in (EOS_ID, EOT_ID),
+                    "early_step": int(early["global_step"]),
+                    "early_confidence": float(early["confidence"]),
+                    "early_lead": int(early["lead"]),
+                    "late_step": int(late["global_step"]),
+                    "late_confidence": float(late["confidence"]),
+                    "late_lead": int(late["lead"]),
+                    "stable_run_fraction": float(window["stable"].mean()),
+                }
+            )
+        ranked.sort(key=lambda item: (-item["early_confidence"], item["position"]))
+        for rank, item in enumerate(ranked[:per_example], start=1):
+            pair_id = f"{item['example_id']}:{item['position']}:{item['early_step']}"
+            shared = {
+                key: item[key]
+                for key in (
+                    "example_id",
+                    "dataset",
+                    "position",
+                    "relative_position",
+                    "selected_step",
+                    "selected_token",
+                    "final_token",
+                    "forced_token",
+                    "is_eos_eot",
+                    "stable_run_fraction",
+                )
+            }
+            rows.append(
+                {
+                    **shared,
+                    "intervention_group": "commit_early_stable",
+                    "match_role": "target",
+                    "candidate_rank": rank,
+                    "pair_id": pair_id,
+                    "forced_step": item["early_step"],
+                    "forced_step_confidence": item["early_confidence"],
+                    "commit_lead": item["early_lead"],
+                }
+            )
+            rows.append(
+                {
+                    **shared,
+                    "intervention_group": "commit_late_stable_control",
+                    "match_role": "control",
+                    "candidate_rank": rank,
+                    "pair_id": pair_id,
+                    "forced_step": item["late_step"],
+                    "forced_step_confidence": item["late_confidence"],
+                    "commit_lead": item["late_lead"],
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+@torch.no_grad()
+def commit_intervention_decode(
+    model: torch.nn.Module,
+    tokenizer: Any,
+    example: Any,
+    candidate: pd.Series,
+    baseline: dict[str, Any],
+    config: DecodeConfig,
+) -> dict[str, Any]:
+    """Replay the decode, force-committing one stable token identity early.
+
+    The forced position replaces one of the step's scheduled transfers
+    (score=+inf), mirroring force_commit_decode in run_counterfactual_commit;
+    representation updates continue everywhere (A1 arm: semantic lock only).
+    """
+    device = model_device(model)
+    forced_step = int(candidate["forced_step"])
+    forced_pos = int(candidate["position"])
+    forced_token = int(candidate["forced_token"])
+    input_ids, attention_mask = prepare_prompts(tokenizer, [build_prompt(example.question, example.dataset)], device)
+    _, prompt_len = input_ids.shape
+    total_len = prompt_len + config.gen_length
+    x = torch.full((1, total_len), config.mask_id, dtype=torch.long, device=device)
+    x[:, :prompt_len] = input_ids.clone()
+    attention_mask = torch.cat(
+        [
+            attention_mask,
+            torch.ones((1, config.gen_length), dtype=attention_mask.dtype, device=device),
+        ],
+        dim=-1,
+    )
+    num_blocks = config.gen_length // config.block_length
+    steps_per_block = config.steps // num_blocks
+    prev_log_probs: torch.Tensor | None = None
+    prev_top1 = torch.full_like(x, fill_value=-1)
+    runlength = torch.zeros_like(x, dtype=torch.float32)
+    nfe = 0
+    forced_applied = False
+    replay_top1_matches = False
+
+    for block_idx in range(num_blocks):
+        block_start = prompt_len + block_idx * config.block_length
+        block_end = prompt_len + (block_idx + 1) * config.block_length
+        block_mask_index = x[:, block_start:block_end] == config.mask_id
+        num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps_per_block)
+        for step_in_block in range(steps_per_block):
+            global_step = block_idx * steps_per_block + step_in_block
+            mask_index = x == config.mask_id
+            logits = model(x, attention_mask=attention_mask).logits
+            nfe += 1
+            x0, log_probs, runlength, feature_map = decode_step_features(
+                logits,
+                x,
+                mask_index,
+                prev_log_probs,
+                prev_top1,
+                runlength,
+                global_step,
+                config,
+            )
+            confidence = feature_map["confidence"]
+            allowed = mask_index.clone()
+            allowed[:, :prompt_len] = False
+            allowed[:, block_end:] = False
+            x0 = torch.where(mask_index, x0, x)
+            score = torch.full_like(confidence, fill_value=-torch.inf)
+            score[allowed] = confidence[allowed]
+
+            if global_step == forced_step and bool(allowed[0, forced_pos].detach().cpu()):
+                replay_top1_matches = int(x0[0, forced_pos].detach().cpu()) == forced_token
+                x0[0, forced_pos] = forced_token
+                score[0, forced_pos] = torch.inf
+                forced_applied = True
+
+            transfer_index = torch.zeros_like(x, dtype=torch.bool)
+            k = int(num_transfer_tokens[0, step_in_block].item())
+            if k > 0:
+                _, select_index = torch.topk(score[0], k=k)
+                transfer_index[0, select_index] = True
+            x[transfer_index] = x0[transfer_index]
+            prev_log_probs = log_probs.detach()
+            prev_top1 = x0.detach()
+            del logits, log_probs, score
+
+    final_tokens = x[:, prompt_len:].detach().cpu()[0].numpy().astype(np.int64, copy=False)
+    baseline_tokens = np.asarray(baseline["final_tokens"], dtype=np.int64)
+    rel_pos = int(candidate["relative_position"])
+    effects = counterfactual_token_effects(final_tokens, baseline_tokens, rel_pos)
+    changed_positions = np.flatnonzero(final_tokens != baseline_tokens).astype(int).tolist()
+    non_target_positions = [pos for pos in changed_positions if pos != rel_pos]
+    generation = tokenizer.batch_decode(x[:, prompt_len:], skip_special_tokens=True)[0].strip()
+    baseline_normalized_answer = normalize_answer(str(baseline["generation"]))
+    forced_normalized_answer = normalize_answer(generation)
+    forced_correct = score_generation(generation, example)
+    return {
+        "example_id": example.example_id,
+        "dataset": example.dataset,
+        "intervention_group": candidate["intervention_group"],
+        "match_role": candidate["match_role"],
+        "pair_id": candidate["pair_id"],
+        "candidate_rank": int(candidate["candidate_rank"]),
+        "position": forced_pos,
+        "relative_position": rel_pos,
+        "selected_step": int(candidate["selected_step"]),
+        "forced_step": forced_step,
+        "commit_lead": int(candidate["commit_lead"]),
+        "forced_token": forced_token,
+        "forced_step_confidence": float(candidate["forced_step_confidence"]),
+        "stable_run_fraction": float(candidate["stable_run_fraction"]),
+        "is_eos_eot": bool(candidate["is_eos_eot"]),
+        "forced_applied": forced_applied,
+        "replay_top1_matches": replay_top1_matches,
+        "baseline_final_token": int(baseline_tokens[rel_pos]),
+        "forced_final_token": int(final_tokens[rel_pos]),
+        "baseline_correct": bool(baseline["correct"]),
+        "baseline_generation": baseline["generation"],
+        "forced_generation": generation,
+        "baseline_normalized_answer": baseline_normalized_answer,
+        "forced_normalized_answer": forced_normalized_answer,
+        "normalized_answer_changed": baseline_normalized_answer != forced_normalized_answer,
+        "forced_correct": forced_correct,
+        "answer_correct_changed": forced_correct != bool(baseline["correct"]),
+        "nfe": nfe,
+        "changed_relative_positions": json.dumps(changed_positions),
+        "non_target_changed_relative_positions": json.dumps(non_target_positions),
+        **effects,
+    }
+
+
+def write_commit_summary(
+    output_dir: Path,
+    args: argparse.Namespace,
+    drift_df: pd.DataFrame,
+    commit_df: pd.DataFrame,
+    started_at: float,
+) -> None:
+    summary: dict[str, Any] = {
+        "intervention_mode": "commit",
+        "examples": int(drift_df["example_id"].nunique()) if not drift_df.empty else 0,
+        "committed_tokens": int(len(drift_df)),
+        "semantic_safe_rate": float(drift_df["semantic_safe"].mean()) if len(drift_df) else None,
+        "interventions": int(len(commit_df)),
+        "latency_s": time.perf_counter() - started_at,
+        "config": vars(args),
+    }
+    group_summary = pd.DataFrame()
+    pair_summary = pd.DataFrame()
+    if not commit_df.empty:
+        group_summary = (
+            commit_df.groupby("intervention_group")
+            .agg(
+                candidates=("example_id", "size"),
+                mean_commit_lead=("commit_lead", "mean"),
+                mean_forced_step_confidence=("forced_step_confidence", "mean"),
+                forced_applied_rate=("forced_applied", "mean"),
+                replay_top1_match_rate=("replay_top1_matches", "mean"),
+                target_token_change_rate=("target_token_changed", "mean"),
+                non_target_token_change_rate=("non_target_token_changed", "mean"),
+                mean_non_target_token_change_count=("non_target_token_change_count", "mean"),
+                answer_correct_change_rate=("answer_correct_changed", "mean"),
+                normalized_answer_change_rate=("normalized_answer_changed", "mean"),
+            )
+            .reset_index()
+        )
+        group_summary.to_csv(output_dir / "commit_group_summary.csv", index=False)
+        summary["intervention_group_summary"] = group_summary.to_dict(orient="records")
+
+        pair_rows: list[dict[str, Any]] = []
+        for pair_id, pair in commit_df.groupby("pair_id", sort=False):
+            targets = pair[pair["match_role"].eq("target")]
+            controls = pair[pair["match_role"].eq("control")]
+            if targets.empty or controls.empty:
+                continue
+            target = targets.iloc[0]
+            control = controls.iloc[0]
+            target_changed = set(json.loads(str(target["non_target_changed_relative_positions"])))
+            control_changed = set(json.loads(str(control["non_target_changed_relative_positions"])))
+            pair_rows.append(
+                {
+                    "pair_id": pair_id,
+                    "example_id": target["example_id"],
+                    "position": int(target["position"]),
+                    "relative_position": int(target["relative_position"]),
+                    "selected_step": int(target["selected_step"]),
+                    "target_forced_step": int(target["forced_step"]),
+                    "control_forced_step": int(control["forced_step"]),
+                    "target_commit_lead": int(target["commit_lead"]),
+                    "control_commit_lead": int(control["commit_lead"]),
+                    "target_forced_step_confidence": float(target["forced_step_confidence"]),
+                    "control_forced_step_confidence": float(control["forced_step_confidence"]),
+                    "stable_run_fraction": float(target["stable_run_fraction"]),
+                    "is_eos_eot": bool(target["is_eos_eot"]),
+                    "target_non_target_changed": bool(target["non_target_token_changed"]),
+                    "control_non_target_changed": bool(control["non_target_token_changed"]),
+                    "delta_non_target_changed": float(target["non_target_token_changed"])
+                    - float(control["non_target_token_changed"]),
+                    "target_non_target_change_count": int(target["non_target_token_change_count"]),
+                    "control_non_target_change_count": int(control["non_target_token_change_count"]),
+                    "delta_non_target_change_count": int(target["non_target_token_change_count"])
+                    - int(control["non_target_token_change_count"]),
+                    "shared_non_target_change_count": int(len(target_changed & control_changed)),
+                    "target_unique_non_target_change_count": int(len(target_changed - control_changed)),
+                    "control_unique_non_target_change_count": int(len(control_changed - target_changed)),
+                    "target_answer_changed": bool(target["answer_correct_changed"]),
+                    "control_answer_changed": bool(control["answer_correct_changed"]),
+                    "delta_answer_changed": float(target["answer_correct_changed"])
+                    - float(control["answer_correct_changed"]),
+                    "target_normalized_answer_changed": bool(target["normalized_answer_changed"]),
+                    "control_normalized_answer_changed": bool(control["normalized_answer_changed"]),
+                    "delta_normalized_answer_changed": float(target["normalized_answer_changed"])
+                    - float(control["normalized_answer_changed"]),
+                }
+            )
+        pair_summary = pd.DataFrame(pair_rows)
+        if not pair_summary.empty:
+            pair_summary.to_csv(output_dir / "commit_pair_summary.csv", index=False)
+            summary["paired_complete_pairs"] = int(len(pair_summary))
+            summary["paired_early_minus_late_non_target_change_rate"] = float(
+                pair_summary["delta_non_target_changed"].mean()
+            )
+            summary["paired_early_minus_late_mean_non_target_count"] = float(
+                pair_summary["delta_non_target_change_count"].mean()
+            )
+            summary["paired_early_minus_late_answer_change_rate"] = float(pair_summary["delta_answer_changed"].mean())
+            summary["paired_early_minus_late_normalized_answer_change_rate"] = float(
+                pair_summary["delta_normalized_answer_changed"].mean()
+            )
+        targets_only = commit_df[commit_df["match_role"].eq("target")]
+        if not targets_only.empty:
+            summary["early_commit_non_target_change_rate"] = float(targets_only["non_target_token_changed"].mean())
+            summary["early_commit_normalized_answer_change_rate"] = float(
+                targets_only["normalized_answer_changed"].mean()
+            )
+    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    lines = [
+        "# Settlement Fate Audit (commit mode / hypothesis A)",
+        "",
+        "```json",
+        json.dumps({k: v for k, v in summary.items() if k != "config"}, indent=2),
+        "```",
+    ]
+    if not group_summary.empty:
+        lines.extend(["", "## Commit Intervention Groups", table_text(group_summary)])
+    if not pair_summary.empty:
+        lines.extend(["", "## Early-vs-Late Matched Pair Summary", table_text(pair_summary)])
+    lines.extend(
+        [
+            "",
+            "## Interpretation Guardrail",
+            "",
+            "Candidates are oracle-conditioned on observational stability (S=1) by "
+            "design: hypothesis A measures P(commit harm | S=1), so final tokens are "
+            "used to define the stable set, not to build a prospective selector. "
+            "The forced commit replaces one scheduled transfer (semantic lock only); "
+            "representation updates continue at every position. The late-commit "
+            "control measures the schedule-perturbation floor for the same token.",
+        ]
+    )
+    (output_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def write_summary(
     output_dir: Path,
     args: argparse.Namespace,
@@ -728,7 +1152,25 @@ def main() -> None:
     parser.add_argument("--cpv-window", type=int, default=4)
     parser.add_argument("--layers", default="16,24,32")
     parser.add_argument("--max-interventions-per-example", type=int, default=1)
+    parser.add_argument(
+        "--intervention-mode",
+        choices=["clamp", "commit"],
+        default="clamp",
+        help="clamp = stale-row reference-freeze proxy (hypotheses B/C); commit = early forced semantic lock (hypothesis A).",
+    )
+    parser.add_argument("--commit-min-lead", type=int, default=4)
+    parser.add_argument("--commit-min-confidence", type=float, default=0.5)
+    parser.add_argument(
+        "--exclude-eos-eot",
+        action="store_true",
+        help="Exclude EOS/EOT tokens from intervention candidates (they drift high but are inert padding).",
+    )
     parser.add_argument("--skip-interventions", action="store_true")
+    parser.add_argument(
+        "--skip-drift-time-rows",
+        action="store_true",
+        help="Skip per-step drift row logging (max/final drift still tracked); needed for long generations.",
+    )
     parser.add_argument("--empty-cache", action="store_true")
     parser.add_argument("--dtype", default="bf16")
     parser.add_argument("--device", default="cuda")
@@ -756,14 +1198,18 @@ def main() -> None:
 
     all_drift_rows: list[dict[str, Any]] = []
     all_time_rows: list[dict[str, Any]] = []
+    all_proposal_rows: list[dict[str, Any]] = []
     baseline_by_example: dict[str, dict[str, Any]] = {}
     token_lookup: dict[tuple[str, int], CommittedToken] = {}
     for idx, example in enumerate(examples, start=1):
         print(f"[settlement-audit] baseline {idx}/{len(examples)} {example.example_id}", flush=True)
-        baseline = collect_baseline_audit(model, tokenizer, example, config, layers)
+        baseline = collect_baseline_audit(
+            model, tokenizer, example, config, layers, collect_time_rows=not args.skip_drift_time_rows
+        )
         baseline_by_example[example.example_id] = baseline
         all_drift_rows.extend(committed_rows(baseline, layers))
         all_time_rows.extend(baseline["time_rows"])
+        all_proposal_rows.extend(baseline["proposal_rows"])
         for token in baseline["committed"]:
             token_lookup[(token.example_id, token.position)] = token
         pd.DataFrame(all_drift_rows).to_csv(output_dir / "committed_token_drift.csv", index=False)
@@ -772,9 +1218,55 @@ def main() -> None:
             torch.cuda.empty_cache()
 
     drift_df = pd.DataFrame(all_drift_rows)
+
+    if args.intervention_mode == "commit":
+        proposal_df = pd.DataFrame(all_proposal_rows)
+        proposal_df.to_csv(output_dir / "proposal_ledger.csv", index=False)
+        commit_interventions: list[dict[str, Any]] = []
+        if not args.skip_interventions and not drift_df.empty:
+            commit_candidates = choose_commit_candidates(
+                proposal_df,
+                drift_df,
+                args.max_interventions_per_example,
+                args.commit_min_lead,
+                args.commit_min_confidence,
+                exclude_eos_eot=args.exclude_eos_eot,
+            )
+            commit_candidates.to_csv(output_dir / "commit_candidates.csv", index=False)
+            example_lookup = {example.example_id: example for example in examples}
+            for idx, candidate in commit_candidates.iterrows():
+                example_id = str(candidate["example_id"])
+                print(
+                    f"[settlement-audit] commit {idx + 1}/{len(commit_candidates)} "
+                    f"{example_id} group={candidate['intervention_group']}",
+                    flush=True,
+                )
+                result = commit_intervention_decode(
+                    model,
+                    tokenizer,
+                    example_lookup[example_id],
+                    candidate,
+                    baseline_by_example[example_id],
+                    config,
+                )
+                commit_interventions.append(result)
+                pd.DataFrame(commit_interventions).to_csv(output_dir / "commit_intervention_results.csv", index=False)
+                gc.collect()
+                if torch.cuda.is_available() and args.empty_cache:
+                    torch.cuda.empty_cache()
+        else:
+            pd.DataFrame().to_csv(output_dir / "commit_candidates.csv", index=False)
+            pd.DataFrame().to_csv(output_dir / "commit_intervention_results.csv", index=False)
+        write_commit_summary(output_dir, args, drift_df, pd.DataFrame(commit_interventions), started_at)
+        return
+
     interventions: list[dict[str, Any]] = []
     if not args.skip_interventions and not drift_df.empty:
-        candidates = choose_drift_candidates(drift_df, args.max_interventions_per_example)
+        candidates = choose_drift_candidates(
+            drift_df,
+            args.max_interventions_per_example,
+            exclude_eos_eot=args.exclude_eos_eot,
+        )
         candidates.to_csv(output_dir / "freeze_candidates.csv", index=False)
         example_lookup = {example.example_id: example for example in examples}
         for idx, candidate in candidates.iterrows():
