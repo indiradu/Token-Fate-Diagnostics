@@ -18,13 +18,23 @@ dropped from future compute). The first two are causal risk gates; the third is
 a systems *utility* gate. Four labels are used consistently across
 `research_idea.md` and `smoke_test.md` — do not invent new ones:
 
-- **A:** observational token stability does not imply commitment safety
+- **A:** semantic commitment does not imply representation settlement
 - **B:** commitment safety does not imply reference-freeze safety
 - **C:** representation drift predicts reference-freeze harm beyond matched controls
 - **U:** reference-freeze safety does not imply compute profitability
 
+There is also a **Level 0** (the same meaning can be carried by different
+tokens) that is named in `research_idea.md` but deliberately not tested, and an
+**auxiliary** commitment-timing question (is committing *earlier than the
+decoder would* harmful?) that is measured but is not a premise. Do not promote
+either into the A/B/C/U set.
+
 `research_idea.md` is reframed often and `smoke_test.md` may lag behind it. Read
-both before restating any claim, and treat `research_idea.md` as current.
+both before restating any claim, and treat `research_idea.md` as current. Note
+that `A` was realigned on 2026-09-01 back to its original `smoke_test.md`
+meaning (representation settlement); results written before that date may use
+`A` for the commitment-timing question instead — see
+`results/README.md` and the artifact for the corrected mapping.
 
 ## Commands
 

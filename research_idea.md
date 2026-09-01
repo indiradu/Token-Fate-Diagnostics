@@ -26,11 +26,28 @@ unobservable row computation carries additional model-quality information.
 Throughout the project, use three scientific hypothesis labels and keep the
 systems proposition separate:
 
-- **A:** Observational token stability does not imply commitment safety.
+- **A:** Semantic commitment does not imply representation settlement.
 - **B:** Commitment safety does not imply reference-freeze safety.
 - **C:** Representation drift predicts reference-freeze harm beyond matched
   controls.
 - **U:** Reference-freeze safety does not imply compute profitability.
+
+Above the ladder sits one further level we name but do not test:
+
+- **Level 0 (meaning vs. tokens):** the same meaning can be carried by
+  different tokens, so a token-identity change is only an *upper bound* on a
+  meaning change. It matters for how outcomes are read — a changed token is not
+  automatically a changed answer, which is why every result reports
+  normalized-answer change alongside token change — but it is not a gate:
+  nothing about meaning-level equivalence changes which rows can be removed
+  from compute, and the efficient-decoding literature does not gate on it
+  either. Treat it as a measurement caveat, not a hypothesis.
+
+A separate, literature-adjacent question is whether committing a token
+*earlier than the decoder would* is harmful. That is commitment-timing risk;
+learned-commitment work (TraceLock and similar) already presses on it, and it
+does not change what can be removed from compute. We measure it as an
+auxiliary result, not as a premise.
 
 `A` through `C` are model-behavior hypotheses. `U` is a systems utility
 proposition whose truth depends on active-set size, sequence length, batch
@@ -44,8 +61,8 @@ measurements used to test these claims.
 | Reference freeze | Reference lock | Causal representation risk | Can other tokens safely see a cached hidden/K/V reference? | Stale context changes downstream tokens or task outcome. |
 | Compute removal | Row removal | Systems utility | Is skipping future row-wise compute faster after overheads? | Sparse execution adds overhead or fails to save latency. |
 
-The proposed paper should show when observational stability and intervention
-safety diverge, when reference freeze is unsafe despite commitment safety, and
+The proposed paper should show when semantic settlement and representational
+settlement diverge, when reference freeze is unsafe despite commitment safety, and
 when safe reference freezes translate into real compute savings.
 
 ## Contribution Framing
@@ -69,17 +86,26 @@ locked row's later private computation unobservable to active tokens; removing
 that computation is then mainly a question of latency, memory, packing, and
 kernel overheads.
 
-### Contribution 2: Observational stability is not intervention safety
+### Contribution 2: Semantic settlement is not representational settlement
 
-We show that observational token stability is systematically different from
-interventional commitment safety. The observational question is:
+We show that fixing a token's identity is systematically different from that
+token's state becoming settled. The identity question is trivially closed once
+a token is committed: in confidence decoding a transferred token is never
+remasked, so
 
 ```text
-S_i,t = 1[x_i,t = x_i,T]
+x_i,t = x_i,T   for all t after commit
 ```
 
-where `H_t` is the history available at denoising step `t`. This asks whether
-the current token identity will match the final token.
+holds by construction. The representational question is open:
+
+```text
+D_i,t = ||h_i,t - h_i,commit|| / ||h_i,commit||
+```
+
+which asks how far the committed row keeps moving after its identity stops
+moving. Empirically `D` stays large for almost every committed token, so the
+two notions of "settled" come apart by default rather than in edge cases.
 
 The interventional commitment-safety question is:
 
@@ -388,7 +414,7 @@ The core empirical test is whether observational settlement predicts
 interventional safety. We should report:
 
 ```text
-S_i,t = 1[x_i,t = x_i,T]
+D_i,t = ||h_i,t - h_i,commit|| / ||h_i,commit||      (post-commit drift)
 C_i,t = 1[Y_commit(i,t) = Y_baseline]
 R_i,t = 1[Y_reference_freeze(i,t) = Y_commit(i,t)]
 ```
@@ -396,17 +422,19 @@ R_i,t = 1[Y_reference_freeze(i,t) = Y_commit(i,t)]
 Then measure the two disagreement sets:
 
 ```text
-S_i,t = 1, C_i,t = 0
+identity fixed, D_i,t > 0
 C_i,t = 1, R_i,t = 0
 ```
 
-The first set shows observationally stable but commitment-harmful tokens. The
-second set shows commit-safe but reference-freeze-harmful tokens.
+The first set shows tokens whose identity is settled while their representation
+is not. The second set shows commit-safe but reference-freeze-harmful tokens.
 
 This produces three scientific hypotheses and one systems proposition:
 
-1. **A:** Observational token stability does not imply commitment safety:
-   `S=1` can occur while `C=0`.
+1. **A:** Semantic commitment does not imply representation settlement: a
+   token's identity can be permanently fixed while `D_i,t` stays large. In a
+   decoder that never remasks a transferred token, the antecedent holds by
+   construction, so `A` is an observation rather than an intervention.
 2. **B:** Commitment safety does not imply reference-freeze safety: `C=1` can
    occur while `R=0`.
 3. **C:** High post-commit representation drift predicts reference-freeze harm
@@ -463,7 +491,7 @@ Commitment-intervention labels:
 - If the token identity is committed at step `t` but full computation continues,
   does the final sequence change?
 - Does the normalized answer or task correctness change?
-- How often does observational stability disagree with commitment safety?
+- How often does a fixed identity coexist with an unsettled representation?
 
 Reference-freeze labels:
 
@@ -486,7 +514,7 @@ Compute-utility labels:
 This phase should produce the core scientific figure:
 
 ```text
-observational stability != commitment safety != reference-freeze safety
+identity settled != representation settled != reference-freeze safe
 reference-freeze safety != compute profitability
 ```
 
@@ -679,9 +707,9 @@ to establish the scientific and algorithmic claim.
 
 Minimum evidence:
 
-1. Observationally stable tokens that are commitment-harmful exist at a
-   nontrivial rate, or observational instability is shown to be too conservative
-   for task-level safety.
+1. Committed tokens whose representations keep drifting exist at a nontrivial
+   rate, establishing that semantic settlement does not deliver a stable
+   reference for free.
 2. Commit-safe tokens that are reference-freeze-harmful exist at a nontrivial
    rate.
 3. Representation drift predicts reference-freeze harm beyond matched controls.
