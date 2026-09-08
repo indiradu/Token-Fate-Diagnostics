@@ -17,6 +17,7 @@ class Example:
     question: str
     gold_answer: str
     dataset: str
+    metadata: dict[str, Any] | None = None
 
 
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:,\d{3})*(?:\.\d+)?")
@@ -111,7 +112,64 @@ def score_countdown(generation: str, question: str, gold_answer: str) -> bool:
 def score_generation(generation: str, example: Example) -> bool:
     if example.dataset.lower() == "countdown":
         return score_countdown(generation, example.question, example.gold_answer)
+    if example.dataset.lower() in {"humaneval", "human_eval", "human-eval"}:
+        return score_humaneval(generation, example)
     return score_exact_number(generation, example.gold_answer)
+
+
+def _extract_code(generation: str) -> str:
+    """Remove common Markdown wrappers without altering Python indentation."""
+    fenced = re.findall(r"```(?:python|py)?\s*\n?(.*?)```", generation, flags=re.DOTALL | re.IGNORECASE)
+    if fenced:
+        return fenced[0].strip("\n")
+    return generation.strip()
+
+
+def score_humaneval(generation: str, example: Example, timeout_s: float = 3.0) -> bool:
+    """Run one HumanEval task in a short-lived, resource-limited subprocess.
+
+    HumanEval's official fields contain a function prompt and a test harness.
+    The generated completion is intentionally evaluated outside this process;
+    this keeps model-produced code from sharing the experiment process. This
+    is a pass@1-style single-sample check, not the full official pass@k suite.
+    """
+    metadata = example.metadata or {}
+    prompt = str(metadata.get("prompt", example.question))
+    test = str(metadata.get("test", ""))
+    entry_point = str(metadata.get("entry_point", ""))
+    if not test or not entry_point:
+        return False
+    completion = _extract_code(generation)
+    # The model may repeat the function header. If it emits a full definition,
+    # use it directly; otherwise append the body to the dataset prompt.
+    candidate = completion if re.search(r"^\s*(?:async\s+)?def\s+", completion, flags=re.MULTILINE) else prompt + completion
+    harness = (
+        "import contextlib\n"
+        "import io\n"
+        "import sys\n"
+        "try:\n"
+        f"    exec({candidate!r}, globals())\n"
+        f"    exec({test!r}, globals())\n"
+        f"    check({entry_point})\n"
+        "except Exception as exc:\n"
+        "    print(type(exc).__name__, file=sys.stderr)\n"
+        "    raise\n"
+    )
+    import subprocess
+    import sys
+    import tempfile
+
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-I", "-c", harness],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
 
 
 def build_prompt(question: str, dataset: str) -> str:
@@ -127,6 +185,12 @@ def build_prompt(question: str, dataset: str) -> str:
             "Use each provided number exactly once with +, -, *, /, and "
             "parentheses to reach the target. End with `#### <expression>`.\n\n"
             f"Problem: {question}"
+        )
+    if dataset_key in {"humaneval", "human_eval", "human-eval"}:
+        return (
+            "Complete the following Python function. Return only the completed "
+            "code, with no Markdown fences or explanation.\n\n"
+            f"{question}"
         )
     return (
         "Solve the problem. Show concise reasoning and put the final answer in "
@@ -197,6 +261,38 @@ def _load_countdown(split: str, limit: int | None, offset: int) -> list[Example]
     return [_make_countdown_example(idx, split) for idx in range(offset, offset + count)]
 
 
+def _load_humaneval(split: str, limit: int | None, offset: int) -> list[Example]:
+    if split not in {"test", "validation"}:
+        raise ValueError("HumanEval provides only a test split")
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:
+        raise RuntimeError(
+            "Install `datasets` or pass --jsonl-path with HumanEval fields."
+        ) from exc
+    hf = load_dataset("openai/openai_humaneval", split="test")
+    end = len(hf) if limit is None else min(len(hf), offset + limit)
+    rows: list[Example] = []
+    for idx in range(offset, end):
+        row: dict[str, Any] = hf[idx]
+        task_id = str(row.get("task_id", f"HumanEval/{idx}"))
+        prompt = str(row["prompt"])
+        rows.append(
+            Example(
+                example_id=task_id,
+                question=prompt,
+                gold_answer=str(row.get("canonical_solution", "")),
+                dataset="humaneval",
+                metadata={
+                    "prompt": prompt,
+                    "test": str(row["test"]),
+                    "entry_point": str(row["entry_point"]),
+                },
+            )
+        )
+    return rows
+
+
 def load_examples(
     dataset: str,
     split: str,
@@ -210,6 +306,8 @@ def load_examples(
     dataset_key = dataset.lower()
     if dataset_key == "countdown":
         return _load_countdown(split, limit, offset)
+    if dataset_key in {"humaneval", "human_eval", "human-eval"} and not jsonl_path:
+        return _load_humaneval(split, limit, offset)
 
     try:
         from datasets import load_dataset
