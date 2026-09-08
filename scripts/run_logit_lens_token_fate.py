@@ -106,7 +106,11 @@ def register_layer_hooks(model: torch.nn.Module, layers: list[int]) -> tuple[dic
     return captured, handles
 
 
-def patch_attention_capture(model: torch.nn.Module, layer: int) -> tuple[dict[str, torch.Tensor], Any]:
+def patch_attention_capture(
+    model: torch.nn.Module,
+    layer: int,
+    capture_per_head: bool = False,
+) -> tuple[dict[str, torch.Tensor], Any]:
     block = transformer_blocks(model)[layer - 1]
     original_attention = block.attention
     captured: dict[str, torch.Tensor] = {}
@@ -155,7 +159,10 @@ def patch_attention_capture(model: torch.nn.Module, layer: int) -> tuple[dict[st
                     dtype,
                 )
                 scores = scores + bias.float()
-            captured["weights"] = torch.softmax(scores, dim=-1).mean(dim=1).detach()
+            weights = torch.softmax(scores, dim=-1).detach()
+            captured["weights"] = weights.mean(dim=1)
+            if capture_per_head:
+                captured["weights_by_head"] = weights
         return original_attention(
             q,
             k,

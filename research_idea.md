@@ -4,10 +4,9 @@
 
 Irreversible token locking in diffusion language models should be treated as a
 phased decision problem, not just a convergence-detection heuristic: we
-separately estimate when a token identity is safe to commit, when its
-representation is safe to freeze as the reference exposed to other tokens, and
-when removing its row from future computation is actually profitable on the
-target runtime.
+separately estimate when a token identity is safe to commit, when the reference
+state exposed to other tokens is safe to freeze, and when removing its row from
+future computation is actually profitable on the target runtime.
 
 ## Core Claim
 
@@ -16,20 +15,21 @@ settled now. Our proposal asks a harder question:
 
 > What is the conditional risk of making this token irreversible?
 
-The key distinction is that observational token stability, interventional
-freeze safety, and systems profitability are not the same object. Exact compute
-removal usually requires a fixed reference state; once that reference is exact
-and all state visible to other positions is frozen, the remaining question is
-mostly whether row removal is worthwhile on the hardware, not whether the
-unobservable row computation carries additional model-quality information.
+The key distinction is that observational token/prediction stability,
+interventional commitment safety, interventional reference-freeze safety, and
+systems profitability are not the same object. Exact compute removal usually
+requires a fixed reference state; once that reference is exact and all state
+visible to other positions is frozen, the remaining question is mostly whether
+row removal is worthwhile on the hardware, not whether the unobservable row
+computation carries additional model-quality information.
 
 Throughout the project, use three scientific hypothesis labels and keep the
 systems proposition separate:
 
-- **A:** Semantic commitment does not imply representation settlement.
+- **A:** Token-identity stability does not imply reference-state settlement.
 - **B:** Commitment safety does not imply reference-freeze safety.
-- **C:** Representation drift predicts reference-freeze harm beyond matched
-  controls.
+- **C:** Reference-state drift predicts the causal harm of reference freezing
+  beyond matched controls.
 - **U:** Reference-freeze safety does not imply compute profitability.
 
 Above the ladder sits one further level we name but do not test:
@@ -42,6 +42,12 @@ Above the ladder sits one further level we name but do not test:
   nothing about meaning-level equivalence changes which rows can be removed
   from compute, and the efficient-decoding literature does not gate on it
   either. Treat it as a measurement caveat, not a hypothesis.
+
+Terminology guardrail: do not call same-token identity "semantic convergence"
+unless the metric really measures meaning. In this proposal, "semantic lock" is
+shorthand for token-identity commitment. A token can keep the same surface form
+while its meaning contribution changes with surrounding context, and two
+different surface forms can express the same answer.
 
 A separate, literature-adjacent question is whether committing a token
 *earlier than the decoder would* is harmful. That is commitment-timing risk;
@@ -57,13 +63,102 @@ measurements used to test these claims.
 
 | Stage | Decision | Gate type | Question | Failure if wrong |
 | --- | --- | --- | --- | --- |
-| Commitment | Semantic lock | Causal quality risk | Can we irreversibly fix this token identity now? | The intervention changes sequence or task outcome. |
+| Commitment | Token-identity lock | Causal quality risk | Can we irreversibly fix this token identity now? | The intervention changes sequence or task outcome. |
 | Reference freeze | Reference lock | Causal representation risk | Can other tokens safely see a cached hidden/K/V reference? | Stale context changes downstream tokens or task outcome. |
 | Compute removal | Row removal | Systems utility | Is skipping future row-wise compute faster after overheads? | Sparse execution adds overhead or fails to save latency. |
 
-The proposed paper should show when semantic settlement and representational
-settlement diverge, when reference freeze is unsafe despite commitment safety, and
-when safe reference freezes translate into real compute savings.
+The proposed paper should show when token stability and reference-state
+settlement diverge, when reference freeze is unsafe despite commitment safety,
+and when safe reference freezes translate into real compute savings.
+
+## Estimands and Examples
+
+The cleanest version of PhaseLock uses different estimands for different
+decisions.
+
+First define token/prediction stability on the baseline trajectory:
+
+```text
+T_i,t = 1[argmax p_i,s = argmax p_i,T for every s >= t]
+```
+
+`T_i,t = 1` means the model's preferred token at position `i` no longer changes
+after step `t`. This is a token-identity claim, not a meaning claim.
+
+Define reference-state settlement at a tolerance relevant to the actual cached
+state:
+
+```text
+R_i,t(delta) = 1[max_{s >= t, layer} D_KV(i, layer, t, s) <= delta]
+```
+
+where `D_KV` should measure the K/V or hidden reference exposed to active
+tokens, not arbitrary private computation. A is the claim that
+`P(R_i,t = 0 | T_i,t = 1) > 0`, but the meaningful result is not "some float
+changed." The movement must be above numerical/background variation and large
+enough to plausibly perturb active-token logits, attention outputs, or decoded
+text.
+
+Example for A: position `i` has top-1 token `"7"` from step 20 through the final
+decode, but the masked tokens around it are still being filled in. As that
+context changes, the token's K/V vectors continue moving by a large fraction of
+their norm. The token is stable; the reference that other positions attend to
+has not settled. A non-example is a row whose hidden state changes only at
+floating-point noise scale and never changes any downstream logit.
+
+For intervention safety, separate the outputs:
+
+```text
+Y0 = baseline output
+YC = output when token identity is committed, but representation is recomputed
+YF = output when token identity is committed and its reference state is frozen
+YR = output when token identity is committed, reference is frozen, and row compute is removed
+```
+
+B has two useful readings:
+
+```text
+B1: P(YF != YC | YC = Y0) > 0
+B2: P(YF != YC | observed_past_drift <= delta) > 0
+```
+
+B1 is the main causal premise: committing the token can be harmless while
+freezing its stale reference changes later tokens. B2 is the online-control
+premise: low drift over the last few observed steps does not prove future
+reference settlement. If representation convergence meant oracle knowledge
+that all future K/V states were identical, freezing would be safe in a
+conventional transformer. The failure mode is weaker and more realistic:
+past-local stability is not a certificate about the future.
+
+Example for B1: forcing a stable `"7"` to remain `"7"` leaves the final answer
+unchanged, so `YC = Y0`. But freezing the K/V row from step 20 makes a later
+position attend to an outdated reference and changes `"21"` to `"24"`, so
+`YF != YC`.
+
+Example for B2: a SureLock-style KL gate sees two consecutive identical
+posteriors and admits the token. One step later, newly unmasked context changes
+the token's K/V state and the cached reference becomes stale. The online signal
+was calm; the future reference was not settled.
+
+C should be stated as a prediction-of-harm claim, not as "drift influences
+answer quality":
+
+```text
+C: D_pre-freeze predicts 1[YF != YC] after controlling for cheap stability signals
+```
+
+Raw drift is probably insufficient. Harm depends on whether active tokens are
+sensitive to the stale reference. A better first-order proxy is:
+
+```text
+reference risk ~= K/V drift * attention exposure
+```
+
+Large drift on a token that no active position attends to may be harmless.
+Moderate drift on a token that many active positions attend to can matter.
+More formally, the ideal object is closer to
+`||J_active<-KV * Delta_KV||`: the active tokens' sensitivity to the stale K/V
+perturbation, not the perturbation norm alone.
 
 ## Contribution Framing
 
@@ -86,26 +181,27 @@ locked row's later private computation unobservable to active tokens; removing
 that computation is then mainly a question of latency, memory, packing, and
 kernel overheads.
 
-### Contribution 2: Semantic settlement is not representational settlement
+### Contribution 2: Token stability is not reference-state settlement
 
 We show that fixing a token's identity is systematically different from that
-token's state becoming settled. The identity question is trivially closed once
-a token is committed: in confidence decoding a transferred token is never
-remasked, so
+token's reference state becoming settled. The identity question is trivially
+closed once a token is committed: in confidence decoding a transferred token is
+never remasked, so
 
 ```text
 x_i,t = x_i,T   for all t after commit
 ```
 
-holds by construction. The representational question is open:
+holds by construction. The reference-state question is open:
 
 ```text
 D_i,t = ||h_i,t - h_i,commit|| / ||h_i,commit||
 ```
 
 which asks how far the committed row keeps moving after its identity stops
-moving. Empirically `D` stays large for almost every committed token, so the
-two notions of "settled" come apart by default rather than in edge cases.
+moving. The meaningful claim is not that `D` is merely nonzero, but that it can
+remain large enough to matter to the cached hidden/K/V state that active tokens
+see.
 
 The interventional commitment-safety question is:
 
@@ -213,7 +309,7 @@ algorithmic FLOPs substantially.
 Our difference:
 
 - SureLock asks whether the local posterior is stable enough to stop compute.
-- We ask whether semantic lock and reference-freeze decisions satisfy
+- We ask whether token-identity lock and reference-freeze decisions satisfy
   calibrated intervention-risk budgets, then whether row removal has positive
   runtime utility.
 - We can reuse SureLock's compute machinery, but replace or augment its lock
@@ -228,9 +324,9 @@ token, then use that prediction to decide commit-or-revise.
 Our difference cannot merely be "we predict future token stability." The
 stronger distinction is:
 
-- learned semantic fate is only one risk estimator;
+- learned token fate is only one risk estimator;
 - we apply it selectively where cheap signals are ambiguous;
-- we separate semantic lock risk from reference/cache risk and compute-removal
+- we separate token-identity lock risk from reference/cache risk and compute-removal
   utility;
 - we evaluate the full compute-quality Pareto frontier, not just stability
   prediction.
@@ -260,21 +356,21 @@ direction: task answers may converge before full sequence refinement finishes.
 Our difference:
 
 - existing semantic-convergence methods improve when to stop or commit;
-- PhaseLock tests whether semantic convergence predicts interventional
-  commitment safety;
+- PhaseLock treats same-token stability as only one observable and tests whether
+  it predicts interventional commitment and reference-freeze safety;
 - for task settings such as math and code, report both sequence-level outcomes
   and task-level outcomes.
 
 ### Polestar and representation-drift methods
 
 Polestar is especially important because it connects token commitment and
-cache/reuse through representation drift. This pressures any claim that
-"semantic stability implies freeze safety."
+cache/reuse through representation drift. This pressures any claim that token
+stability implies freeze safety.
 
 Our difference should be tested, not assumed:
 
-- semantic fate: token identity stability;
-- representational fate: hidden/K/V drift and cached-reference safety;
+- token fate: token identity stability;
+- reference fate: hidden/K/V drift and cached-reference safety;
 - computational fate: runtime utility under row-wise compute removal.
 
 If experiments show these are separable, that becomes the scientific core of
@@ -286,7 +382,7 @@ Window-Diffusion and related cache/pruning systems already give tokens
 different computational roles such as active, buffer, cached, or far-field
 positions. PhaseLock should not claim novelty from having multiple token states
 alone. The contribution is that transitions are treated as intervention-risk
-or utility decisions: semantic lock controls commitment risk, reference freeze
+or utility decisions: token-identity lock controls commitment risk, reference freeze
 controls causal representation risk, and row removal controls runtime utility.
 
 ## Proposed Method
@@ -414,31 +510,34 @@ The core empirical test is whether observational settlement predicts
 interventional safety. We should report:
 
 ```text
-D_i,t = ||h_i,t - h_i,commit|| / ||h_i,commit||      (post-commit drift)
-C_i,t = 1[Y_commit(i,t) = Y_baseline]
-R_i,t = 1[Y_reference_freeze(i,t) = Y_commit(i,t)]
+T_i,t = 1[token identity stays fixed on the baseline trajectory]
+D_i,t = hidden/KV drift from the candidate freeze reference
+C_i,t = 1[YC = Y0]      (commitment safety)
+R_i,t = 1[YF = YC]      (reference-freeze safety)
 ```
 
 Then measure the two disagreement sets:
 
 ```text
-identity fixed, D_i,t > 0
+T_i,t = 1, D_i,t meaningfully above tolerance
 C_i,t = 1, R_i,t = 0
 ```
 
-The first set shows tokens whose identity is settled while their representation
-is not. The second set shows commit-safe but reference-freeze-harmful tokens.
+The first set shows tokens whose identity is stable while their reference state
+is not settled. The second set shows commit-safe but reference-freeze-harmful
+tokens.
 
 This produces three scientific hypotheses and one systems proposition:
 
-1. **A:** Semantic commitment does not imply representation settlement: a
-   token's identity can be permanently fixed while `D_i,t` stays large. In a
-   decoder that never remasks a transferred token, the antecedent holds by
-   construction, so `A` is an observation rather than an intervention.
+1. **A:** Token-identity stability does not imply reference-state settlement: a
+   token's identity can be permanently fixed while `D_i,t` stays meaningfully
+   large. In a decoder that never remasks a transferred token, the antecedent
+   holds by construction, so `A` is an observation rather than an intervention.
 2. **B:** Commitment safety does not imply reference-freeze safety: `C=1` can
    occur while `R=0`.
-3. **C:** High post-commit representation drift predicts reference-freeze harm
-   beyond matched low-drift controls.
+3. **C:** High pre-freeze reference-state drift predicts reference-freeze harm
+   beyond matched low-drift controls, especially when the token has high
+   attention exposure from active positions.
 4. **U:** Reference-freeze safety does not imply compute profitability: `R=1`
    does not guarantee `g_compute > 0`.
 
@@ -467,7 +566,7 @@ Implement or approximate the strongest relevant lock criteria:
 - TraceLock-style learned future-stability controller;
 - SureLock criterion and SureLock cached-reference plus row-removal machinery;
 - representation-drift gate inspired by Polestar;
-- oracle semantic settlement;
+- oracle token settlement;
 - oracle commitment safety;
 - oracle reference-freeze safety;
 - oracle compute utility.
@@ -483,7 +582,7 @@ commitment safety, reference-freeze safety, and compute utility.
 Observational labels:
 
 - Does the current top-1 token equal the final token?
-- What is the earliest irreversible semantic settlement step?
+- What is the earliest irreversible token-settlement step?
 - Does a high-confidence token later change?
 
 Commitment-intervention labels:
@@ -491,16 +590,16 @@ Commitment-intervention labels:
 - If the token identity is committed at step `t` but full computation continues,
   does the final sequence change?
 - Does the normalized answer or task correctness change?
-- How often does a fixed identity coexist with an unsettled representation?
+- How often does a fixed identity coexist with an unsettled reference state?
 
 Reference-freeze labels:
 
-- How much do hidden states, K/V states, or logits drift after semantic
+- How much do hidden states, K/V states, or logits drift after token
   settlement?
 - If the token's hidden row or K/V reference is frozen after commitment, do
   other tokens change?
 - Does answer correctness or generation quality change?
-- Does representation drift remain high for commit-safe tokens?
+- Does reference-state drift remain high for commit-safe tokens?
 - Which layers and positions show the largest commitment/reference gap?
 
 Compute-utility labels:
@@ -514,7 +613,7 @@ Compute-utility labels:
 This phase should produce the core scientific figure:
 
 ```text
-identity settled != representation settled != reference-freeze safe
+token identity settled != reference state settled != reference-freeze safe
 reference-freeze safety != compute profitability
 ```
 
@@ -707,12 +806,13 @@ to establish the scientific and algorithmic claim.
 
 Minimum evidence:
 
-1. Committed tokens whose representations keep drifting exist at a nontrivial
-   rate, establishing that semantic settlement does not deliver a stable
-   reference for free.
+1. Token-stable positions whose reference states keep drifting beyond a useful
+   tolerance exist at a nontrivial rate, establishing that token stability does
+   not deliver a stable cached reference for free.
 2. Commit-safe tokens that are reference-freeze-harmful exist at a nontrivial
    rate.
-3. Representation drift predicts reference-freeze harm beyond matched controls.
+3. Reference-state drift, preferably exposure-weighted, predicts
+   reference-freeze harm beyond matched controls.
 4. Selective risk control reduces commitment and reference-freeze failures at
    matched lock/freeze coverage.
 5. `A2` reference-freeze and `A3` row-removal outputs match up to numerical
@@ -785,9 +885,9 @@ For each high-confidence candidate token-step, compare:
 
 ```text
 A0 = baseline
-A1 = semantic lock, full representation updates
-A2 = semantic lock + reference freeze
-A3 = semantic lock + reference freeze + row removal
+A1 = token-identity lock, full representation updates
+A2 = token-identity lock + reference freeze
+A3 = token-identity lock + reference freeze + row removal
 ```
 
 This directly estimates:
@@ -806,12 +906,12 @@ Then fit or compare risk policies:
 - persistence plus confidence;
 - JSD/persistence-style stability;
 - SureLock criterion;
-- TraceLock-style learned semantic fate;
+- TraceLock-style learned token fate;
 - selective commitment-risk model on high-confidence candidates;
-- semantic lock plus representation-drift reference-freeze gate;
+- token-identity lock plus reference-drift reference-freeze gate;
 - full PhaseLock: commitment-risk gate plus reference-risk gate plus
   compute-utility gate;
-- oracle semantic settlement;
+- oracle token settlement;
 - oracle commitment safety;
 - oracle reference-freeze safety.
 
