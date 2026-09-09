@@ -37,6 +37,9 @@ class PhaseLockPolicy:
     semantic_lock_fraction: float = 0.06
     beta_kl: float = 1.0
     beta_fate: float = 2.0
+    semantic_min_confidence: float = 0.0
+    semantic_min_runlength: int = 1
+    semantic_optional_steps_per_block: int = -1
     representation_threshold: float = 0.02
     representation_patience: int = 2
     representation_min_age: int = 1
@@ -46,6 +49,21 @@ def cosine_distance(current: torch.Tensor, previous: torch.Tensor) -> torch.Tens
     current = torch.nn.functional.normalize(current.float(), dim=-1)
     previous = torch.nn.functional.normalize(previous.float(), dim=-1)
     return (1.0 - (current * previous).sum(dim=-1)).clamp_min(0.0)
+
+
+def update_top1_runlength(
+    previous_top1: torch.Tensor,
+    current_top1: torch.Tensor,
+    previous_runlength: torch.Tensor,
+) -> torch.Tensor:
+    """Advance consecutive top-1 persistence for every token position."""
+    if previous_top1.shape != current_top1.shape or previous_runlength.shape != current_top1.shape:
+        raise ValueError("top-1 ids and run lengths must have identical shapes")
+    return torch.where(
+        (previous_top1 >= 0) & (previous_top1 == current_top1),
+        previous_runlength + 1.0,
+        torch.ones_like(previous_runlength),
+    )
 
 
 def semantic_priority(
@@ -63,10 +81,22 @@ def semantic_priority(
     """Return larger-is-safer priority for token identity commitment."""
     if policy == "confidence":
         return confidence
+    if policy in {"capped_confidence", "gated_confidence"}:
+        return confidence
+    if policy in {"entropy", "negative_entropy"}:
+        return -entropy
+    if policy in {"posterior_kl", "kl_only"}:
+        return -kl
     if policy in {"posterior", "surelock"}:
         return confidence * torch.exp(-beta_kl * kl)
     if policy == "margin":
         return margin
+    if policy in {"persistence_only", "runlength"}:
+        # Confidence only breaks the many exact run-length ties; its scale is
+        # too small to override a one-step persistence difference.
+        return runlength + 1e-6 * confidence
+    if policy in {"capped_persistence", "gated_persistence"}:
+        return runlength + 1e-6 * confidence
     if policy == "persistence":
         return confidence * (1.0 + torch.log1p(runlength))
     if policy == "consensus":
@@ -75,7 +105,65 @@ def semantic_priority(
         if predicted_regret is None:
             raise ValueError(f"{policy} requires predicted_regret")
         return confidence * torch.exp(-beta_fate * predicted_regret)
+    if policy in {"token_fate_only", "trace_regret"}:
+        if predicted_regret is None:
+            raise ValueError(f"{policy} requires predicted_regret")
+        return -predicted_regret
     raise ValueError(f"unknown semantic policy: {policy}")
+
+
+def select_semantic_transfer(
+    allowed: torch.Tensor,
+    confidence: torch.Tensor,
+    priority: torch.Tensor,
+    base_k: int,
+    total_k: int,
+    accelerated_eligible: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Select scheduled transfers first, then selector-specific early locks.
+
+    The normal denoising schedule always receives its ``base_k`` highest-
+    confidence transfers.  A semantic policy controls only the additional
+    ``total_k - base_k`` positions, so A0->A1 isolates accelerated commitment
+    instead of replacing the baseline transfer rule.
+    """
+    if allowed.ndim != 2:
+        raise ValueError(f"allowed must be [batch, length], got {tuple(allowed.shape)}")
+    if confidence.shape != allowed.shape or priority.shape != allowed.shape:
+        raise ValueError("allowed, confidence, and priority must have identical shapes")
+    if accelerated_eligible is not None and accelerated_eligible.shape != allowed.shape:
+        raise ValueError("accelerated_eligible must have the same shape as allowed")
+    if base_k < 0 or total_k < 0:
+        raise ValueError("base_k and total_k must be non-negative")
+
+    scheduled = torch.zeros_like(allowed, dtype=torch.bool)
+    accelerated = torch.zeros_like(allowed, dtype=torch.bool)
+    for batch_idx in range(allowed.shape[0]):
+        available = int(allowed[batch_idx].sum().item())
+        scheduled_k = min(available, base_k, total_k)
+        if scheduled_k:
+            scores = torch.where(
+                allowed[batch_idx],
+                confidence[batch_idx],
+                torch.full_like(confidence[batch_idx], -torch.inf),
+            )
+            indices = torch.topk(scores, k=scheduled_k).indices
+            scheduled[batch_idx, indices] = True
+
+        remaining = allowed[batch_idx] & ~scheduled[batch_idx]
+        if accelerated_eligible is not None:
+            remaining &= accelerated_eligible[batch_idx]
+        extra_k = min(int(remaining.sum().item()), max(0, total_k - scheduled_k))
+        if extra_k:
+            scores = torch.where(
+                remaining,
+                priority[batch_idx],
+                torch.full_like(priority[batch_idx], -torch.inf),
+            )
+            indices = torch.topk(scores, k=extra_k).indices
+            accelerated[batch_idx, indices] = True
+
+    return scheduled | accelerated, scheduled, accelerated
 
 
 def representation_ready(

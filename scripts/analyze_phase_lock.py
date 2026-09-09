@@ -10,6 +10,8 @@ import statistics
 from pathlib import Path
 from typing import Any
 
+from regret_remasking.data import normalize_answer
+
 
 def _load(path: Path) -> dict[str, dict[str, Any]]:
     rows: dict[str, dict[str, Any]] = {}
@@ -31,11 +33,24 @@ def _load_ledger(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _answer_value(record: dict[str, Any]) -> str | None:
+    dataset = str(record.get("dataset", "")).lower()
+    if dataset in {"gsm8k", "math500", "math-500"}:
+        return normalize_answer(str(record.get("generation", "")))
+    return None
+
+
 def _pair(reference: dict[str, Any], candidate: dict[str, Any], label: str) -> dict[str, Any]:
     ref_tokens = list(reference.get("token_ids", []))
     cand_tokens = list(candidate.get("token_ids", []))
     length = min(len(ref_tokens), len(cand_tokens))
     agreement = sum(ref_tokens[idx] == cand_tokens[idx] for idx in range(length)) / max(1, max(len(ref_tokens), len(cand_tokens)))
+    reference_answer = _answer_value(reference)
+    candidate_answer = _answer_value(candidate)
+    if reference_answer is None or candidate_answer is None:
+        answer_changed = str(reference.get("generation", "")) != str(candidate.get("generation", ""))
+    else:
+        answer_changed = reference_answer != candidate_answer
     return {
         "example_id": str(reference["example_id"]),
         "pair": label,
@@ -43,7 +58,10 @@ def _pair(reference: dict[str, Any], candidate: dict[str, Any], label: str) -> d
         "candidate_arm": candidate["arm"],
         "exact_sequence_match": int(ref_tokens == cand_tokens),
         "token_agreement": agreement,
-        "answer_changed": int(bool(reference["correct"]) != bool(candidate["correct"])),
+        "answer_changed": int(answer_changed),
+        "correctness_changed": int(bool(reference["correct"]) != bool(candidate["correct"])),
+        "reference_answer_value": reference_answer,
+        "candidate_answer_value": candidate_answer,
         "reference_correct": int(bool(reference["correct"])),
         "candidate_correct": int(bool(candidate["correct"])),
         "reference_correct_candidate_incorrect": int(bool(reference["correct"]) and not bool(candidate["correct"])),
@@ -216,6 +234,7 @@ def main() -> None:
                 "exact_sequence_match_rate": sum(int(r["exact_sequence_match"]) for r in rows) / len(rows),
                 "mean_token_agreement": sum(float(r["token_agreement"]) for r in rows) / len(rows),
                 "answer_changed_rate": sum(int(r["answer_changed"]) for r in rows) / len(rows),
+                "correctness_changed_rate": sum(int(r["correctness_changed"]) for r in rows) / len(rows),
                 "reference_correct_candidate_incorrect_rate": sum(int(r["reference_correct_candidate_incorrect"]) for r in rows) / len(rows),
                 "reference_incorrect_candidate_correct_rate": sum(int(r["reference_incorrect_candidate_correct"]) for r in rows) / len(rows),
                 "mean_runtime_gain": sum(float(r["runtime_gain"]) for r in rows) / len(rows),

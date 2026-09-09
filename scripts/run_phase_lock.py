@@ -41,7 +41,9 @@ from regret_remasking.phase_lock import (
     cosine_distance,
     representation_gate_preset,
     representation_ready,
+    select_semantic_transfer,
     semantic_priority,
+    update_top1_runlength,
 )
 
 # Reuse the architecture-specific A2/A3 implementation that was validated by
@@ -59,7 +61,7 @@ def _feature_map(
     runlength: torch.Tensor,
     cpv_window: int,
     t_frac: float,
-) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     log_probs = F.log_softmax(logits.float(), dim=-1)
     probabilities = log_probs.exp()
     x0 = torch.argmax(logits, dim=-1)
@@ -73,7 +75,7 @@ def _feature_map(
     else:
         kl = (probabilities * (log_probs - prev_log_probs.float())).sum(dim=-1).clamp_min(0.0)
     top1_flip = ((prev_top1 >= 0) & (prev_top1 != x0)).float()
-    runlength = torch.where(prev_top1 == x0, runlength + 1.0, torch.ones_like(runlength))
+    runlength = update_top1_runlength(prev_top1, x0, runlength)
     # The local helpers in the repository require a 2-D tensor. The window is
     # intentionally computed over the full sequence, matching the trace code.
     from regret_remasking.features import local_window_average
@@ -95,6 +97,7 @@ def _feature_map(
         x0,
         x0_probability,
         log_probs,
+        runlength,
     )
 
 
@@ -226,7 +229,7 @@ def decode_one(
                 outputs = model(x, attention_mask=attention_mask)
                 logits = outputs.logits
                 nfe += 1
-                feature_map, x0, x0_probability, log_probs = _feature_map(
+                feature_map, x0, x0_probability, log_probs, runlength = _feature_map(
                     logits,
                     x,
                     mask_index,
@@ -240,7 +243,14 @@ def decode_one(
                 allowed = mask_index.clone()
                 allowed[:, :prompt_len] = False
                 allowed[:, block_end:] = False
-                predicted_regret = _predict_regret(scorer, feature_map, allowed, t_frac)
+                needs_regret = policy.semantic in {
+                    "token_fate",
+                    "trace",
+                    "fate",
+                    "token_fate_only",
+                    "trace_regret",
+                }
+                predicted_regret = _predict_regret(scorer, feature_map, allowed, t_frac) if needs_regret else None
                 priority = semantic_priority(
                     policy.semantic,
                     feature_map["confidence"],
@@ -268,16 +278,56 @@ def decode_one(
                     base_k = int(num_transfer_tokens[0, step_in_block].item())
                     k = min(available, max(base_k, int(math.ceil(policy.semantic_lock_fraction * available))))
                     if k > 0:
-                        masked_priority = torch.where(allowed[0], priority[0], torch.full_like(priority[0], -torch.inf))
-                        _, indices = torch.topk(masked_priority, k=k)
-                        transfer[0, indices] = True
+                        # A posterior difference does not exist on the first
+                        # denoising step.  Use the baseline confidence ordering
+                        # for that step rather than treating all-zero KL as
+                        # meaningful evidence.
+                        effective_priority = priority
+                        selector_fallback = None
+                        if policy.semantic in {"posterior_kl", "kl_only"} and prev_log_probs is None:
+                            effective_priority = feature_map["confidence"]
+                            selector_fallback = "confidence_no_posterior_history"
+                        accelerated_eligible = allowed.clone()
+                        if policy.semantic in {
+                            "capped_confidence",
+                            "gated_confidence",
+                            "capped_persistence",
+                            "gated_persistence",
+                        }:
+                            accelerated_eligible &= (
+                                feature_map["confidence"] >= policy.semantic_min_confidence
+                            )
+                            accelerated_eligible &= (
+                                feature_map["runlength"] >= policy.semantic_min_runlength
+                            )
+                            if policy.semantic_optional_steps_per_block >= 0:
+                                accelerated_eligible &= (
+                                    step_in_block < policy.semantic_optional_steps_per_block
+                                )
+                        transfer, scheduled_mask, accelerated_mask = select_semantic_transfer(
+                            allowed,
+                            feature_map["confidence"],
+                            effective_priority,
+                            base_k,
+                            k,
+                            accelerated_eligible=accelerated_eligible,
+                        )
+                        indices = torch.nonzero(transfer[0], as_tuple=False).flatten()
                         for pos in indices.tolist():
+                            selection_source = "accelerated" if bool(accelerated_mask[0, pos]) else "scheduled"
                             event = {
                                 "position": int(pos),
                                 "relative_position": int(pos - prompt_len),
                                 "token_id": int(x0[0, pos].item()),
                                 "confidence": float(feature_map["confidence"][0, pos].detach().cpu()),
-                                "priority": float(priority[0, pos].detach().cpu()),
+                                "priority": float(effective_priority[0, pos].detach().cpu()),
+                                "selection_source": selection_source,
+                                "selector_fallback": selector_fallback if selection_source == "accelerated" else None,
+                                "scheduled_k": int(scheduled_mask[0].sum().item()),
+                                "accelerated_k": int(accelerated_mask[0].sum().item()),
+                                "semantic_min_confidence": policy.semantic_min_confidence,
+                                "semantic_min_runlength": policy.semantic_min_runlength,
+                                "semantic_optional_steps_per_block": policy.semantic_optional_steps_per_block,
                                 "global_step": global_step,
                                 "block": block_idx,
                                 "step_in_block": step_in_block,
@@ -294,7 +344,12 @@ def decode_one(
                         "phase": "denoise_transfer" if arm == "A0" else "semantic_commit",
                         "semantic_policy": policy.semantic,
                         "confidence_online": float(feature_map["confidence"][0, pos].detach().cpu()),
+                        "margin_online": float(feature_map["margin"][0, pos].detach().cpu()),
+                        "entropy_online": float(feature_map["entropy"][0, pos].detach().cpu()),
                         "kl_online": float(feature_map["kl"][0, pos].detach().cpu()),
+                        "runlength_online": float(feature_map["runlength"][0, pos].detach().cpu()),
+                        "top1_flip_online": float(feature_map["top1_flip"][0, pos].detach().cpu()),
+                        "context_volatility_online": float(feature_map["context_volatility"][0, pos].detach().cpu()),
                         "predicted_regret": None if predicted_regret is None else float(predicted_regret[0, pos].detach().cpu()),
                     }
                     semantic_events.append(event)
@@ -443,6 +498,9 @@ def decode_one(
         "masked_token_forwards": masked_token_forwards,
         "latency_s": time.perf_counter() - start,
         "semantic_commit_count": 0 if arm == "A0" else len(semantic_events),
+        "accelerated_commit_count": 0 if arm == "A0" else sum(
+            event.get("selection_source") == "accelerated" for event in semantic_events
+        ),
         "reference_lock_count": len(reference_events),
         "prompt_len": prompt_len,
         "gen_length": config.gen_length,
@@ -468,6 +526,7 @@ def _summary(records: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_nfe": sum(float(r["nfe"]) for r in records) / len(records),
         "mean_latency_s": sum(float(r["latency_s"]) for r in records) / len(records),
         "mean_semantic_commit_count": sum(float(r["semantic_commit_count"]) for r in records) / len(records),
+        "mean_accelerated_commit_count": sum(float(r.get("accelerated_commit_count", 0)) for r in records) / len(records),
         "mean_reference_lock_count": sum(float(r["reference_lock_count"]) for r in records) / len(records),
     }
 
@@ -525,6 +584,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--representation-min-age", type=int, default=1)
     parser.add_argument("--beta-kl", type=float, default=1.0)
     parser.add_argument("--beta-fate", type=float, default=2.0)
+    parser.add_argument("--semantic-min-confidence", type=float, default=0.0)
+    parser.add_argument("--semantic-min-runlength", type=int, default=1)
+    parser.add_argument("--semantic-optional-steps-per-block", type=int, default=-1)
     parser.add_argument("--regret-model-path", default=None)
     parser.add_argument("--dtype", default="bf16")
     parser.add_argument("--device", default="cuda")
@@ -587,6 +649,9 @@ def main() -> None:
                     semantic_lock_fraction=args.semantic_lock_fraction,
                     beta_kl=args.beta_kl,
                     beta_fate=args.beta_fate,
+                    semantic_min_confidence=args.semantic_min_confidence,
+                    semantic_min_runlength=args.semantic_min_runlength,
+                    semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
                     representation_threshold=args.representation_threshold,
                     representation_patience=args.representation_patience,
                     representation_min_age=args.representation_min_age,
@@ -605,6 +670,9 @@ def main() -> None:
                         semantic_lock_fraction=args.semantic_lock_fraction,
                         beta_kl=args.beta_kl,
                         beta_fate=args.beta_fate,
+                        semantic_min_confidence=args.semantic_min_confidence,
+                        semantic_min_runlength=args.semantic_min_runlength,
+                        semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
                         representation_threshold=args.representation_threshold,
                         representation_patience=args.representation_patience,
                         representation_min_age=args.representation_min_age,
@@ -631,6 +699,9 @@ def main() -> None:
                             semantic_lock_fraction=args.semantic_lock_fraction,
                             beta_kl=args.beta_kl,
                             beta_fate=args.beta_fate,
+                            semantic_min_confidence=args.semantic_min_confidence,
+                            semantic_min_runlength=args.semantic_min_runlength,
+                            semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
                             representation_threshold=args.representation_threshold,
                             representation_patience=args.representation_patience,
                             representation_min_age=args.representation_min_age,
