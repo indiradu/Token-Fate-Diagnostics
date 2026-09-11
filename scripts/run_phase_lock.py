@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,7 @@ from regret_remasking.phase_lock import (
     representation_gate_preset,
     representation_ready,
     select_semantic_transfer,
+    semantic_gate_eligible,
     semantic_priority,
     update_top1_runlength,
 )
@@ -204,6 +206,8 @@ def decode_one(
     prev_log_probs: torch.Tensor | None = None
     prev_top1 = torch.full_like(x, -1)
     runlength = torch.zeros_like(x, dtype=torch.float32)
+    block_prev_top1 = torch.full_like(x, -1)
+    block_runlength = torch.zeros_like(x, dtype=torch.float32)
     nfe = 0
     masked_token_forwards = 0
     start = time.perf_counter()
@@ -216,6 +220,10 @@ def decode_one(
         for block_idx in range(num_blocks):
             block_start = prompt_len + block_idx * config.block_length
             block_end = prompt_len + (block_idx + 1) * config.block_length
+            # Active-block persistence must not inherit apparent stability from
+            # predictions made while this block was ineligible for transfer.
+            block_prev_top1.fill_(-1)
+            block_runlength.zero_()
             block_mask_index = x[:, block_start:block_end] == config.mask_id
             num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps_per_block)
 
@@ -239,6 +247,12 @@ def decode_one(
                     config.cpv_window,
                     float(global_step + 1) / float(config.steps),
                 )
+                block_runlength = update_top1_runlength(
+                    block_prev_top1,
+                    x0,
+                    block_runlength,
+                )
+                feature_map["block_runlength"] = block_runlength
                 t_frac = float(global_step + 1) / float(config.steps)
                 allowed = mask_index.clone()
                 allowed[:, :prompt_len] = False
@@ -284,26 +298,32 @@ def decode_one(
                         # meaningful evidence.
                         effective_priority = priority
                         selector_fallback = None
-                        if policy.semantic in {"posterior_kl", "kl_only"} and prev_log_probs is None:
+                        if policy.semantic in {
+                            "posterior_kl",
+                            "kl_only",
+                            "capped_posterior_kl",
+                            "gated_posterior_kl",
+                        } and prev_log_probs is None:
                             effective_priority = feature_map["confidence"]
                             selector_fallback = "confidence_no_posterior_history"
                         accelerated_eligible = allowed.clone()
-                        if policy.semantic in {
-                            "capped_confidence",
-                            "gated_confidence",
-                            "capped_persistence",
-                            "gated_persistence",
-                        }:
-                            accelerated_eligible &= (
-                                feature_map["confidence"] >= policy.semantic_min_confidence
+                        if policy.semantic.startswith(("capped_", "gated_")):
+                            accelerated_eligible = semantic_gate_eligible(
+                                allowed,
+                                feature_map["confidence"],
+                                feature_map["margin"],
+                                feature_map["kl"],
+                                feature_map["block_runlength"],
+                                min_confidence=policy.semantic_min_confidence,
+                                min_margin=policy.semantic_min_margin,
+                                max_kl=policy.semantic_max_kl,
+                                min_runlength=policy.semantic_min_runlength,
+                                min_block_age=policy.semantic_min_block_age,
+                                step_in_block=step_in_block,
+                                optional_steps_per_block=policy.semantic_optional_steps_per_block,
+                                require_posterior_history=policy.semantic_require_posterior_history,
+                                posterior_history_available=prev_log_probs is not None,
                             )
-                            accelerated_eligible &= (
-                                feature_map["runlength"] >= policy.semantic_min_runlength
-                            )
-                            if policy.semantic_optional_steps_per_block >= 0:
-                                accelerated_eligible &= (
-                                    step_in_block < policy.semantic_optional_steps_per_block
-                                )
                         transfer, scheduled_mask, accelerated_mask = select_semantic_transfer(
                             allowed,
                             feature_map["confidence"],
@@ -326,8 +346,12 @@ def decode_one(
                                 "scheduled_k": int(scheduled_mask[0].sum().item()),
                                 "accelerated_k": int(accelerated_mask[0].sum().item()),
                                 "semantic_min_confidence": policy.semantic_min_confidence,
+                                "semantic_min_margin": policy.semantic_min_margin,
+                                "semantic_max_kl": policy.semantic_max_kl,
                                 "semantic_min_runlength": policy.semantic_min_runlength,
+                                "semantic_min_block_age": policy.semantic_min_block_age,
                                 "semantic_optional_steps_per_block": policy.semantic_optional_steps_per_block,
+                                "semantic_require_posterior_history": policy.semantic_require_posterior_history,
                                 "global_step": global_step,
                                 "block": block_idx,
                                 "step_in_block": step_in_block,
@@ -348,6 +372,9 @@ def decode_one(
                         "entropy_online": float(feature_map["entropy"][0, pos].detach().cpu()),
                         "kl_online": float(feature_map["kl"][0, pos].detach().cpu()),
                         "runlength_online": float(feature_map["runlength"][0, pos].detach().cpu()),
+                        "block_runlength_online": float(
+                            feature_map["block_runlength"][0, pos].detach().cpu()
+                        ),
                         "top1_flip_online": float(feature_map["top1_flip"][0, pos].detach().cpu()),
                         "context_volatility_online": float(feature_map["context_volatility"][0, pos].detach().cpu()),
                         "predicted_regret": None if predicted_regret is None else float(predicted_regret[0, pos].detach().cpu()),
@@ -472,6 +499,7 @@ def decode_one(
                     )
                 prev_log_probs = log_probs.detach()
                 prev_top1 = x0.detach()
+                block_prev_top1 = x0.detach()
                 previous_hidden = hidden
                 del outputs, logits, log_probs
     finally:
@@ -557,6 +585,116 @@ def _warmup_model(model: torch.nn.Module, tokenizer: Any, example: Any, config: 
     del x, input_ids, attention_mask
 
 
+_SEMANTIC_LABEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+def _semantic_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
+    """Resolve semantic arms from CLI defaults or a JSON sweep manifest."""
+    defaults: dict[str, Any] = {
+        "semantic_lock_fraction": args.semantic_lock_fraction,
+        "beta_kl": args.beta_kl,
+        "beta_fate": args.beta_fate,
+        "semantic_min_confidence": args.semantic_min_confidence,
+        "semantic_min_margin": args.semantic_min_margin,
+        "semantic_max_kl": args.semantic_max_kl,
+        "semantic_min_runlength": args.semantic_min_runlength,
+        "semantic_min_block_age": args.semantic_min_block_age,
+        "semantic_optional_steps_per_block": args.semantic_optional_steps_per_block,
+        "semantic_require_posterior_history": args.semantic_require_posterior_history,
+    }
+    if args.semantic_policy_configs is None:
+        raw_specs: list[dict[str, Any]] = [
+            {"label": name, "policy": name}
+            for name in (item.strip() for item in args.semantic_policies.split(","))
+            if name
+        ]
+    else:
+        path = Path(args.semantic_policy_configs)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            payload = payload.get("semantic_policies")
+        if not isinstance(payload, list):
+            raise ValueError("semantic policy config must be a list or contain a semantic_policies list")
+        raw_specs = payload
+
+    allowed_fields = {"label", "policy", *defaults}
+    resolved: list[dict[str, Any]] = []
+    seen_labels: set[str] = set()
+    for raw in raw_specs:
+        if not isinstance(raw, dict):
+            raise ValueError("each semantic policy config must be an object")
+        unknown = set(raw) - allowed_fields
+        if unknown:
+            raise ValueError(f"unknown semantic policy config fields: {sorted(unknown)}")
+        if "label" not in raw or "policy" not in raw:
+            raise ValueError("each semantic policy config requires label and policy")
+        label = str(raw["label"])
+        policy = str(raw["policy"])
+        if not _SEMANTIC_LABEL.fullmatch(label):
+            raise ValueError(f"unsafe semantic policy label: {label!r}")
+        if label in seen_labels:
+            raise ValueError(f"duplicate semantic policy label: {label}")
+        seen_labels.add(label)
+        spec = {**defaults, **raw, "label": label, "policy": policy}
+        spec["semantic_lock_fraction"] = float(spec["semantic_lock_fraction"])
+        spec["beta_kl"] = float(spec["beta_kl"])
+        spec["beta_fate"] = float(spec["beta_fate"])
+        spec["semantic_min_confidence"] = float(spec["semantic_min_confidence"])
+        spec["semantic_min_margin"] = float(spec["semantic_min_margin"])
+        if spec["semantic_max_kl"] is not None:
+            spec["semantic_max_kl"] = float(spec["semantic_max_kl"])
+        spec["semantic_min_runlength"] = int(spec["semantic_min_runlength"])
+        spec["semantic_min_block_age"] = int(spec["semantic_min_block_age"])
+        spec["semantic_optional_steps_per_block"] = int(spec["semantic_optional_steps_per_block"])
+        if not isinstance(spec["semantic_require_posterior_history"], bool):
+            raise ValueError("semantic_require_posterior_history must be true or false")
+        if not 0.0 <= spec["semantic_lock_fraction"] <= 1.0:
+            raise ValueError("semantic_lock_fraction must be in [0, 1]")
+        if not 0.0 <= spec["semantic_min_confidence"] <= 1.0:
+            raise ValueError("semantic_min_confidence must be in [0, 1]")
+        if not 0.0 <= spec["semantic_min_margin"] <= 1.0:
+            raise ValueError("semantic_min_margin must be in [0, 1]")
+        if spec["semantic_max_kl"] is not None and spec["semantic_max_kl"] < 0.0:
+            raise ValueError("semantic_max_kl must be non-negative")
+        if spec["semantic_min_runlength"] < 1:
+            raise ValueError("semantic_min_runlength must be at least one")
+        if spec["semantic_min_block_age"] < 0:
+            raise ValueError("semantic_min_block_age must be non-negative")
+        resolved.append(spec)
+    if not resolved:
+        raise ValueError("no semantic policies configured")
+    return resolved
+
+
+def _phase_policy(
+    spec: dict[str, Any],
+    args: argparse.Namespace,
+    *,
+    representation: str,
+    compute: str,
+) -> PhaseLockPolicy:
+    return PhaseLockPolicy(
+        semantic=str(spec["policy"]),
+        representation=representation,
+        compute=compute,
+        semantic_lock_fraction=float(spec["semantic_lock_fraction"]),
+        beta_kl=float(spec["beta_kl"]),
+        beta_fate=float(spec["beta_fate"]),
+        semantic_min_confidence=float(spec["semantic_min_confidence"]),
+        semantic_min_margin=float(spec["semantic_min_margin"]),
+        semantic_max_kl=(
+            None if spec["semantic_max_kl"] is None else float(spec["semantic_max_kl"])
+        ),
+        semantic_min_runlength=int(spec["semantic_min_runlength"]),
+        semantic_min_block_age=int(spec["semantic_min_block_age"]),
+        semantic_optional_steps_per_block=int(spec["semantic_optional_steps_per_block"]),
+        semantic_require_posterior_history=bool(spec["semantic_require_posterior_history"]),
+        representation_threshold=args.representation_threshold,
+        representation_patience=args.representation_patience,
+        representation_min_age=args.representation_min_age,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run staged PhaseLock semantic/reference/compute experiments")
     parser.add_argument("--model-name", default="GSAI-ML/LLaDA-8B-Instruct")
@@ -569,6 +707,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gen-length", type=int, default=64)
     parser.add_argument("--block-length", type=int, default=32)
     parser.add_argument("--semantic-policies", default="confidence,posterior,consensus")
+    parser.add_argument(
+        "--semantic-policy-configs",
+        default=None,
+        help="Optional JSON sweep manifest; overrides --semantic-policies and semantic gate defaults per arm.",
+    )
     parser.add_argument("--representation-policies", default="drift")
     parser.add_argument("--compute-policies", default="row_sparse")
     parser.add_argument("--semantic-lock-fraction", type=float, default=0.06)
@@ -585,8 +728,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--beta-kl", type=float, default=1.0)
     parser.add_argument("--beta-fate", type=float, default=2.0)
     parser.add_argument("--semantic-min-confidence", type=float, default=0.0)
+    parser.add_argument("--semantic-min-margin", type=float, default=0.0)
+    parser.add_argument("--semantic-max-kl", type=float, default=None)
     parser.add_argument("--semantic-min-runlength", type=int, default=1)
+    parser.add_argument("--semantic-min-block-age", type=int, default=0)
     parser.add_argument("--semantic-optional-steps-per-block", type=int, default=-1)
+    parser.add_argument("--semantic-require-posterior-history", action="store_true")
     parser.add_argument("--regret-model-path", default=None)
     parser.add_argument("--dtype", default="bf16")
     parser.add_argument("--device", default="cuda")
@@ -605,7 +752,11 @@ def main() -> None:
     np.random.seed(args.seed)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "run_config.json").write_text(json.dumps(vars(args), indent=2, sort_keys=True), encoding="utf-8")
+    semantic_specs = _semantic_specs(args)
+    run_config = {**vars(args), "resolved_semantic_policies": semantic_specs}
+    (output_dir / "run_config.json").write_text(
+        json.dumps(run_config, indent=2, sort_keys=True), encoding="utf-8"
+    )
     examples = load_examples(args.dataset, args.split, args.limit, offset=args.offset)
     if not examples:
         raise ValueError("no examples loaded")
@@ -625,7 +776,6 @@ def main() -> None:
         from regret_remasking.regret_model import RegretScorer
 
         scorer = RegretScorer(args.regret_model_path)
-    semantic_policies = [item.strip() for item in args.semantic_policies.split(",") if item.strip()]
     representation_policies = [item.strip() for item in args.representation_policies.split(",") if item.strip()]
     compute_policies = [item.strip() for item in args.compute_policies.split(",") if item.strip()]
     ledger = (output_dir / "phase_ledger.jsonl").open("w", encoding="utf-8")
@@ -641,21 +791,9 @@ def main() -> None:
             records_by_arm.setdefault("A0", []).append(a0)
             _append_jsonl(output_dir / "A0.jsonl", a0)
 
-            for semantic_name in semantic_policies:
-                p = PhaseLockPolicy(
-                    semantic=semantic_name,
-                    representation="none",
-                    compute="dense",
-                    semantic_lock_fraction=args.semantic_lock_fraction,
-                    beta_kl=args.beta_kl,
-                    beta_fate=args.beta_fate,
-                    semantic_min_confidence=args.semantic_min_confidence,
-                    semantic_min_runlength=args.semantic_min_runlength,
-                    semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
-                    representation_threshold=args.representation_threshold,
-                    representation_patience=args.representation_patience,
-                    representation_min_age=args.representation_min_age,
-                )
+            for semantic_spec in semantic_specs:
+                semantic_name = str(semantic_spec["label"])
+                p = _phase_policy(semantic_spec, args, representation="none", compute="dense")
                 arm1 = f"P1_{semantic_name}"
                 a1, semantic_plan, _ = decode_one(model, tokenizer, example, config, p, arm1, scorer, ledger_handle=ledger, representation_layer=args.representation_layer)
                 records_by_arm.setdefault(arm1, []).append(a1)
@@ -663,19 +801,11 @@ def main() -> None:
                 for representation_name in representation_policies:
                     if any(name not in {"dense", "kv_cache", "row_sparse", "row_sparse_packed"} for name in compute_policies):
                         raise ValueError("compute policies must be dense, kv_cache, row_sparse, and/or row_sparse_packed")
-                    p2 = PhaseLockPolicy(
-                        semantic=semantic_name,
+                    p2 = _phase_policy(
+                        semantic_spec,
+                        args,
                         representation=representation_name,
                         compute="kv_cache",
-                        semantic_lock_fraction=args.semantic_lock_fraction,
-                        beta_kl=args.beta_kl,
-                        beta_fate=args.beta_fate,
-                        semantic_min_confidence=args.semantic_min_confidence,
-                        semantic_min_runlength=args.semantic_min_runlength,
-                        semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
-                        representation_threshold=args.representation_threshold,
-                        representation_patience=args.representation_patience,
-                        representation_min_age=args.representation_min_age,
                     )
                     # A2 is the reference-lock arm. It is required whenever
                     # either KV reuse or row-sparse compute is requested because
@@ -692,19 +822,11 @@ def main() -> None:
                         records_by_arm.setdefault(arm2, []).append(a2)
                         _append_jsonl(output_dir / f"{arm2}.jsonl", a2)
                     for compute_name in [name for name in compute_policies if name in {"row_sparse", "row_sparse_packed"}]:
-                        p3 = PhaseLockPolicy(
-                            semantic=semantic_name,
+                        p3 = _phase_policy(
+                            semantic_spec,
+                            args,
                             representation=representation_name,
                             compute=compute_name,
-                            semantic_lock_fraction=args.semantic_lock_fraction,
-                            beta_kl=args.beta_kl,
-                            beta_fate=args.beta_fate,
-                            semantic_min_confidence=args.semantic_min_confidence,
-                            semantic_min_runlength=args.semantic_min_runlength,
-                            semantic_optional_steps_per_block=args.semantic_optional_steps_per_block,
-                            representation_threshold=args.representation_threshold,
-                            representation_patience=args.representation_patience,
-                            representation_min_age=args.representation_min_age,
                         )
                         arm3 = f"P3_{semantic_name}_{representation_name}_{compute_name}"
                         a3, _, _ = decode_one(
@@ -718,7 +840,9 @@ def main() -> None:
                         plans_path,
                         {
                             "example_id": example.example_id,
-                            "semantic_policy": semantic_name,
+                            "semantic_policy": semantic_spec["policy"],
+                            "semantic_policy_label": semantic_name,
+                            "semantic_policy_config": semantic_spec,
                             "representation_policy": representation_name,
                             "compute_policies_requested": compute_policies,
                             "semantic_plan": _json_plan(semantic_plan),

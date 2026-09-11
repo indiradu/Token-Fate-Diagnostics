@@ -104,6 +104,9 @@ def audit(input_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
                     "entropy": float(event["entropy_online"]),
                     "posterior_kl": float(event["kl_online"]),
                     "runlength": float(event["runlength_online"]),
+                    "block_runlength": float(
+                        event.get("block_runlength_online", event["runlength_online"])
+                    ),
                     "top1_flip": float(event["top1_flip_online"]),
                     "context_volatility": float(event["context_volatility_online"]),
                     "predicted_regret": event.get("predicted_regret"),

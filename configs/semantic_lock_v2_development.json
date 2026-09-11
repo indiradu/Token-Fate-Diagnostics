@@ -1,0 +1,241 @@
+{
+  "semantic_policies": [
+    {
+      "label": "baseline_c095_s2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.95,
+      "semantic_optional_steps_per_block": 2
+    },
+    {
+      "label": "loose_c090_s4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_optional_steps_per_block": 4
+    },
+    {
+      "label": "rank_margin_c095_s2",
+      "policy": "capped_margin",
+      "semantic_min_confidence": 0.95,
+      "semantic_optional_steps_per_block": 2
+    },
+    {
+      "label": "rank_entropy_c095_s2",
+      "policy": "capped_entropy",
+      "semantic_min_confidence": 0.95,
+      "semantic_optional_steps_per_block": 2
+    },
+    {
+      "label": "rank_persistence_c095_s2",
+      "policy": "capped_persistence",
+      "semantic_min_confidence": 0.95,
+      "semantic_optional_steps_per_block": 2
+    },
+    {
+      "label": "rank_posterior_c095_s2",
+      "policy": "capped_posterior_kl",
+      "semantic_min_confidence": 0.95,
+      "semantic_optional_steps_per_block": 2
+    },
+    {
+      "label": "margin_c090_s4_m005",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_min_margin": 0.05,
+      "semantic_optional_steps_per_block": 4
+    },
+    {
+      "label": "margin_c090_s4_m010",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_min_margin": 0.10,
+      "semantic_optional_steps_per_block": 4
+    },
+    {
+      "label": "margin_c090_s4_m020",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_min_margin": 0.20,
+      "semantic_optional_steps_per_block": 4
+    },
+    {
+      "label": "traj_c090_s4_kl0002_p1",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.002,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0002_p2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.002,
+      "semantic_min_runlength": 2,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0002_p3",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.002,
+      "semantic_min_runlength": 3,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0002_p4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.002,
+      "semantic_min_runlength": 4,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0005_p1",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.005,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0005_p2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.005,
+      "semantic_min_runlength": 2,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0005_p3",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.005,
+      "semantic_min_runlength": 3,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0005_p4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.005,
+      "semantic_min_runlength": 4,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0010_p1",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.01,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0010_p2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.01,
+      "semantic_min_runlength": 2,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0010_p3",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.01,
+      "semantic_min_runlength": 3,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0010_p4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.01,
+      "semantic_min_runlength": 4,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0020_p1",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.02,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0020_p2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.02,
+      "semantic_min_runlength": 2,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0020_p3",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.02,
+      "semantic_min_runlength": 3,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0020_p4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.02,
+      "semantic_min_runlength": 4,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0050_p1",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.05,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0050_p2",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.05,
+      "semantic_min_runlength": 2,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0050_p3",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.05,
+      "semantic_min_runlength": 3,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    },
+    {
+      "label": "traj_c090_s4_kl0050_p4",
+      "policy": "capped_confidence",
+      "semantic_min_confidence": 0.90,
+      "semantic_max_kl": 0.05,
+      "semantic_min_runlength": 4,
+      "semantic_optional_steps_per_block": 4,
+      "semantic_require_posterior_history": true
+    }
+  ]
+}

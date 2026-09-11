@@ -42,6 +42,30 @@ def _fmt(value: float | None) -> str:
     return "n/a" if value is None else f"{value:.3f}"
 
 
+def _semantic_configs(run_dir: Path) -> dict[str, dict[str, Any]]:
+    path = run_dir / "run_config.json"
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    specs = payload.get("resolved_semantic_policies", [])
+    return {
+        str(spec["label"]): {
+            "selector_policy": spec.get("policy"),
+            "semantic_lock_fraction": spec.get("semantic_lock_fraction"),
+            "semantic_min_confidence": spec.get("semantic_min_confidence"),
+            "semantic_min_margin": spec.get("semantic_min_margin"),
+            "semantic_max_kl": spec.get("semantic_max_kl"),
+            "semantic_min_runlength": spec.get("semantic_min_runlength"),
+            "semantic_min_block_age": spec.get("semantic_min_block_age"),
+            "semantic_optional_steps_per_block": spec.get("semantic_optional_steps_per_block"),
+            "semantic_require_posterior_history": spec.get(
+                "semantic_require_posterior_history"
+            ),
+        }
+        for spec in specs
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", action="append", type=_parse_run, required=True)
@@ -52,10 +76,14 @@ def main() -> None:
 
     dataset_rows: list[dict[str, Any]] = []
     for dataset, run_dir in args.run:
+        config_by_label = _semantic_configs(run_dir)
         summary_path = run_dir / "semantic_analysis" / "semantic_selector_summary.json"
         with summary_path.open("r", encoding="utf-8") as handle:
             for row in json.load(handle):
-                dataset_rows.append({"dataset": dataset, **row})
+                policy = str(row["semantic_policy"])
+                dataset_rows.append(
+                    {"dataset": dataset, **config_by_label.get(policy, {}), **row}
+                )
     if not dataset_rows:
         raise ValueError("no semantic selector rows loaded")
 
@@ -67,13 +95,15 @@ def main() -> None:
     for policy, rows in sorted(grouped.items()):
         examples = sum(int(row["examples"]) for row in rows)
         events = sum(int(row["accelerated_lock_events"]) for row in rows)
-        matched_events = round(
-            sum(
-                float(row["retrospective_lock_precision_vs_a0"])
-                * int(row["accelerated_lock_events"])
-                for row in rows
+        matched_events = round(sum(
+            (
+                0.0
+                if row["retrospective_lock_precision_vs_a0"] is None
+                else float(row["retrospective_lock_precision_vs_a0"])
             )
-        )
+            * int(row["accelerated_lock_events"])
+            for row in rows
+        ))
         harmful_examples = round(
             sum(float(row["answer_harm_rate"]) * int(row["examples"]) for row in rows)
         )
@@ -82,6 +112,12 @@ def main() -> None:
 
         def example_weighted(field: str) -> float:
             return sum(float(row[field]) * int(row["examples"]) for row in rows) / examples
+
+        def invariant(field: str) -> Any:
+            values = {json.dumps(row.get(field), sort_keys=True) for row in rows}
+            if len(values) > 1:
+                raise ValueError(f"semantic policy {policy!r} changes {field} across runs")
+            return rows[0].get(field)
 
         reference_runtime_by_dataset = {
             str(row["dataset"]): float(row["mean_runtime_gain"])
@@ -97,9 +133,23 @@ def main() -> None:
         combined.append(
             {
                 "semantic_policy": policy,
+                "selector_policy": invariant("selector_policy"),
+                "semantic_lock_fraction": invariant("semantic_lock_fraction"),
+                "semantic_min_confidence": invariant("semantic_min_confidence"),
+                "semantic_min_margin": invariant("semantic_min_margin"),
+                "semantic_max_kl": invariant("semantic_max_kl"),
+                "semantic_min_runlength": invariant("semantic_min_runlength"),
+                "semantic_min_block_age": invariant("semantic_min_block_age"),
+                "semantic_optional_steps_per_block": invariant(
+                    "semantic_optional_steps_per_block"
+                ),
+                "semantic_require_posterior_history": invariant(
+                    "semantic_require_posterior_history"
+                ),
                 "datasets": len(rows),
                 "examples": examples,
                 "accelerated_lock_events": events,
+                "mean_accelerated_locks_per_example": events / examples,
                 "pooled_lock_precision_vs_a0": matched_events / events if events else None,
                 "pooled_lock_precision_wilson95_low": precision_low,
                 "pooled_lock_precision_wilson95_high": precision_high,
@@ -119,8 +169,11 @@ def main() -> None:
                 "max_dataset_answer_harm_rate": max(float(row["answer_harm_rate"]) for row in rows),
                 "example_weighted_accuracy_delta": example_weighted("accuracy_delta"),
                 "example_weighted_nfe_reduction": example_weighted("mean_nfe_reduction"),
+                "example_weighted_masked_token_forward_reduction": example_weighted(
+                    "mean_masked_token_forward_reduction"
+                ),
                 "example_weighted_runtime_gain": example_weighted("mean_runtime_gain"),
-                "runtime_gain_delta_vs_confidence": sum(
+                "runtime_gain_delta_vs_reference": sum(
                     (
                         float(row["mean_runtime_gain"])
                         - reference_runtime_by_dataset[str(row["dataset"])]
@@ -139,14 +192,15 @@ def main() -> None:
     lines = [
         "# Cross-dataset semantic-lock screen",
         "",
-        "All selectors use the same normal scheduled transfers and the same accelerated-lock budget.",
+        "All selectors preserve the same normal scheduled transfers. Optional-lock admission may abstain, so actual commitments vary.",
         "",
-        "| selector | lock precision | exact sequence | answer harm | NFE gain | runtime gain |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| selector | locks/example | lock precision | exact sequence | answer harm | NFE gain | runtime gain |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in combined:
         lines.append(
-            f"| {row['semantic_policy']} | {_fmt(row['pooled_lock_precision_vs_a0'])} | "
+            f"| {row['semantic_policy']} | {_fmt(row['mean_accelerated_locks_per_example'])} | "
+            f"{_fmt(row['pooled_lock_precision_vs_a0'])} | "
             f"{_fmt(row['example_weighted_exact_sequence_match_rate'])} | "
             f"{_fmt(row['example_weighted_answer_harm_rate'])} | "
             f"{_fmt(row['example_weighted_nfe_reduction'])} | "

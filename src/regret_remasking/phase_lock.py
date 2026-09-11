@@ -38,8 +38,12 @@ class PhaseLockPolicy:
     beta_kl: float = 1.0
     beta_fate: float = 2.0
     semantic_min_confidence: float = 0.0
+    semantic_min_margin: float = 0.0
+    semantic_max_kl: float | None = None
     semantic_min_runlength: int = 1
+    semantic_min_block_age: int = 0
     semantic_optional_steps_per_block: int = -1
+    semantic_require_posterior_history: bool = False
     representation_threshold: float = 0.02
     representation_patience: int = 2
     representation_min_age: int = 1
@@ -83,6 +87,12 @@ def semantic_priority(
         return confidence
     if policy in {"capped_confidence", "gated_confidence"}:
         return confidence
+    if policy in {"capped_margin", "gated_margin"}:
+        return margin
+    if policy in {"capped_entropy", "gated_entropy"}:
+        return -entropy
+    if policy in {"capped_posterior_kl", "gated_posterior_kl"}:
+        return -kl
     if policy in {"entropy", "negative_entropy"}:
         return -entropy
     if policy in {"posterior_kl", "kl_only"}:
@@ -110,6 +120,52 @@ def semantic_priority(
             raise ValueError(f"{policy} requires predicted_regret")
         return -predicted_regret
     raise ValueError(f"unknown semantic policy: {policy}")
+
+
+def semantic_gate_eligible(
+    allowed: torch.Tensor,
+    confidence: torch.Tensor,
+    margin: torch.Tensor,
+    kl: torch.Tensor,
+    runlength: torch.Tensor,
+    *,
+    min_confidence: float = 0.0,
+    min_margin: float = 0.0,
+    max_kl: float | None = None,
+    min_runlength: int = 1,
+    min_block_age: int = 0,
+    step_in_block: int = 0,
+    optional_steps_per_block: int = -1,
+    require_posterior_history: bool = False,
+    posterior_history_available: bool = True,
+) -> torch.Tensor:
+    """Return positions admitted for optional semantic commitment.
+
+    This gate is deliberately separate from ranking.  It can abstain even when
+    the acceleration budget has room, while the ordinary scheduled transfers
+    remain unaffected.
+    """
+    if any(tensor.shape != allowed.shape for tensor in (confidence, margin, kl, runlength)):
+        raise ValueError("semantic gate tensors must have identical shapes")
+    if min_runlength < 1:
+        raise ValueError("min_runlength must be at least one")
+    if min_block_age < 0:
+        raise ValueError("min_block_age must be non-negative")
+    eligible = allowed.clone()
+    if step_in_block < min_block_age:
+        return torch.zeros_like(allowed, dtype=torch.bool)
+    if optional_steps_per_block >= 0 and step_in_block >= optional_steps_per_block:
+        return torch.zeros_like(allowed, dtype=torch.bool)
+    if require_posterior_history and not posterior_history_available:
+        return torch.zeros_like(allowed, dtype=torch.bool)
+    eligible &= confidence >= min_confidence
+    eligible &= margin >= min_margin
+    eligible &= runlength >= min_runlength
+    if max_kl is not None:
+        if max_kl < 0:
+            raise ValueError("max_kl must be non-negative")
+        eligible &= kl <= max_kl
+    return eligible
 
 
 def select_semantic_transfer(
