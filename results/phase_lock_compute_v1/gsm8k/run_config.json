@@ -1,0 +1,79 @@
+{
+  "block_length": 32,
+  "bootstrap_samples": 10000,
+  "dataset": "gsm8k",
+  "device": "cuda",
+  "dtype": "bf16",
+  "example_indices": null,
+  "gen_length": 64,
+  "limit": 10,
+  "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+  "offset": 300,
+  "output_dir": "/home/indira.duisembayeva/projects/regret_remasking/results/phase_lock_compute_v1_gsm8k_20260913",
+  "representation_label": "robust_delayed_one_update",
+  "representation_policy_configs": "/home/indira.duisembayeva/projects/regret_remasking/configs/representation_lock_modes.json",
+  "resolved_representation_policy": {
+    "label": "robust_delayed_one_update",
+    "policy": "always",
+    "representation_layer": 8,
+    "representation_lock_fraction": 1.0,
+    "representation_min_age": 1,
+    "representation_patience": 1,
+    "representation_threshold": 0.0
+  },
+  "resolved_semantic_policies": [
+    {
+      "beta_fate": 2.0,
+      "beta_kl": 1.0,
+      "label": "safe_c095_s2",
+      "policy": "capped_confidence",
+      "semantic_lock_fraction": 0.06,
+      "semantic_max_kl": null,
+      "semantic_min_block_age": 0,
+      "semantic_min_confidence": 0.95,
+      "semantic_min_margin": 0.0,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 2,
+      "semantic_require_posterior_history": false
+    },
+    {
+      "beta_fate": 2.0,
+      "beta_kl": 1.0,
+      "label": "aggressive_c090_age4_s8",
+      "policy": "capped_confidence",
+      "semantic_lock_fraction": 0.06,
+      "semantic_max_kl": null,
+      "semantic_min_block_age": 4,
+      "semantic_min_confidence": 0.9,
+      "semantic_min_margin": 0.0,
+      "semantic_min_runlength": 1,
+      "semantic_optional_steps_per_block": 8,
+      "semantic_require_posterior_history": false
+    }
+  ],
+  "runtime_environment": {
+    "cuda_version": "12.1",
+    "cudnn_version": 90100,
+    "device_capability": [
+      8,
+      9
+    ],
+    "device_name": "NVIDIA RTX 5000 Ada Generation",
+    "device_total_memory_bytes": 33804779520,
+    "torch_version": "2.5.1+cu121"
+  },
+  "seed": 17,
+  "semantic_labels": null,
+  "semantic_policy_configs": "/home/indira.duisembayeva/projects/regret_remasking/configs/semantic_lock_modes.json",
+  "split": "test",
+  "steps": 64,
+  "timing_protocol": {
+    "backend_order": "alternating_by_repeat",
+    "bootstrap_unit": "example",
+    "cuda_synchronize": true,
+    "plans_excluded": true,
+    "task_scoring_excluded": true
+  },
+  "timing_repeats": 5,
+  "timing_warmups": 1
+}

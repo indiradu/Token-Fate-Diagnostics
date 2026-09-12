@@ -573,10 +573,12 @@ def decode_one(
         if runtime is not None:
             runtime.remove()
 
-    final_tokens = x[:, prompt_len:].detach().cpu()
-    text = tokenizer.batch_decode(final_tokens, skip_special_tokens=True)[0].strip()
     if device.type == "cuda":
         torch.cuda.synchronize(device)
+    final_tokens = x[:, prompt_len:].detach().cpu()
+    latency_s = time.perf_counter() - start
+    text = tokenizer.batch_decode(final_tokens, skip_special_tokens=True)[0].strip()
+    full_row_token_forwards = nfe * total_len
     record = {
         "example_id": example.example_id,
         "dataset": example.dataset,
@@ -590,7 +592,9 @@ def decode_one(
         "gold_answer": example.gold_answer,
         "nfe": nfe,
         "masked_token_forwards": masked_token_forwards,
-        "latency_s": time.perf_counter() - start,
+        # Model decode wall time through the final device-to-host token copy.
+        # Tokenizer decoding and task scoring are intentionally excluded.
+        "latency_s": latency_s,
         "semantic_commit_count": 0 if arm == "A0" else len(semantic_events),
         "accelerated_commit_count": 0 if arm == "A0" else sum(
             event.get("selection_source") == "accelerated" for event in semantic_events
@@ -599,6 +603,9 @@ def decode_one(
         "reference_plan_count": len(reference_plan_events),
         "reference_token_forwards": reference_token_forwards,
         "reference_opportunity_fraction": reference_token_forwards / max(1, nfe * config.gen_length),
+        "full_row_token_forwards": full_row_token_forwards,
+        "active_row_token_forwards": full_row_token_forwards - reference_token_forwards,
+        "total_row_removal_fraction": reference_token_forwards / max(1, full_row_token_forwards),
         "reference_plan_source": (
             "dense_a1" if generate_reference_plan else "replay" if reference_plan is not None else "online_a2"
         ),

@@ -19,6 +19,7 @@ and can contain complete model generations.
 | `logit_lens_suite_30_r3/` | layer and slice summaries plus attention-probe results | Mechanistic logit-lens and attention diagnostics. |
 | `token_fate_layerwise_wide_30_r2/probes/` | aggregate layerwise probe metrics and fate summaries | Hidden-state probe comparison. |
 | `representation_lock_v2/` | matched-drift development and untouched confirmation summaries | Fixed-plan PhaseLock representation-policy selection. |
+| `phase_lock_compute_v1/` | raw paired A2/A3 timings, run configs, integrity checks, and bootstrap summaries | Packed-row output safety and wall-clock profitability. |
 
 Every strict-intervention directory includes its aggregate group summary and
 paired bootstrap comparisons where applicable.
@@ -28,3 +29,4 @@ For definitions, split rules, and interpretation, read:
 - `../docs/causal_robustness_protocol.md`
 - `../docs/causal_robustness_results.md`
 - `../docs/representation_lock_v2_results.md`
+- `../docs/compute_lock_v1_results.md`

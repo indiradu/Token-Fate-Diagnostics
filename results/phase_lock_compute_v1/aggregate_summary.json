@@ -1,0 +1,281 @@
+{
+  "validation": {
+    "timing_rows": 250,
+    "examples": 25,
+    "example_semantic_groups": 50,
+    "timing_repeats_per_group": 5,
+    "all_a2_exact_a1": true,
+    "all_a3_exact_a2": true,
+    "answer_or_correctness_changes": 0,
+    "fixed_plan_hashes_within_group": true,
+    "runtime_environment": {
+      "cuda_version": "12.1",
+      "cudnn_version": 90100,
+      "device_capability": [
+        8,
+        9
+      ],
+      "device_name": "NVIDIA RTX 5000 Ada Generation",
+      "device_total_memory_bytes": 33804779520,
+      "torch_version": "2.5.1+cu121"
+    }
+  },
+  "by_dataset_and_semantic_mode": [
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "examples": 10,
+      "timed_pairs": 50,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.3425204469822347,
+      "median_a3_latency_s": 3.4521178734721616,
+      "mean_runtime_gain": -0.03195423016321986,
+      "median_runtime_gain": -0.034569043378881115,
+      "p10_runtime_gain": -0.03756890565296393,
+      "p90_runtime_gain": -0.023829321986828907,
+      "example_bootstrap_gain_ci95_low": -0.03589606292212344,
+      "example_bootstrap_gain_ci95_high": -0.026876828337227918,
+      "positive_runtime_gain_rate": 0.0,
+      "mean_speedup": 0.9690876526623826,
+      "mean_generation_reference_opportunity": 0.4787133588073671,
+      "mean_total_row_removal_fraction": 0.2004610942948427,
+      "profitability_pass": 0
+    },
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "safe_c095_s2",
+      "examples": 10,
+      "timed_pairs": 50,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.409956076531671,
+      "median_a3_latency_s": 3.5267819029977545,
+      "mean_runtime_gain": -0.03128442660592354,
+      "median_runtime_gain": -0.03412063503950835,
+      "p10_runtime_gain": -0.03722287719279878,
+      "p90_runtime_gain": -0.016108408578917953,
+      "example_bootstrap_gain_ci95_low": -0.03449593624652098,
+      "example_bootstrap_gain_ci95_high": -0.027007863109943284,
+      "positive_runtime_gain_rate": 0.02,
+      "mean_speedup": 0.9697404245076278,
+      "mean_generation_reference_opportunity": 0.47801061767953157,
+      "mean_total_row_removal_fraction": 0.19994695267906282,
+      "profitability_pass": 0
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "examples": 5,
+      "timed_pairs": 25,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 7.149659521877766,
+      "median_a3_latency_s": 7.096295139985159,
+      "mean_runtime_gain": 0.01006903547961354,
+      "median_runtime_gain": 0.006069730499227544,
+      "p10_runtime_gain": 0.0017761405206982554,
+      "p90_runtime_gain": 0.030150959899795993,
+      "example_bootstrap_gain_ci95_low": 0.0035942424619531585,
+      "example_bootstrap_gain_ci95_high": 0.020403556809519108,
+      "positive_runtime_gain_rate": 1.0,
+      "mean_speedup": 1.0102836536830155,
+      "mean_generation_reference_opportunity": 0.4962208465689514,
+      "mean_total_row_removal_fraction": 0.2535358993814675,
+      "profitability_pass": 1
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "safe_c095_s2",
+      "examples": 5,
+      "timed_pairs": 25,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 7.7111387508921325,
+      "median_a3_latency_s": 7.654212759109214,
+      "mean_runtime_gain": 0.009631434855973895,
+      "median_runtime_gain": 0.005303691842054592,
+      "p10_runtime_gain": 0.0016770049632818475,
+      "p90_runtime_gain": 0.029368602085030115,
+      "example_bootstrap_gain_ci95_low": 0.0033062804911864105,
+      "example_bootstrap_gain_ci95_high": 0.019816151697688432,
+      "positive_runtime_gain_rate": 1.0,
+      "mean_speedup": 1.0098358036502266,
+      "mean_generation_reference_opportunity": 0.49086984578502646,
+      "mean_total_row_removal_fraction": 0.25043727115659925,
+      "profitability_pass": 1
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "examples": 10,
+      "timed_pairs": 50,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.113998386543244,
+      "median_a3_latency_s": 3.224345446913503,
+      "mean_runtime_gain": -0.032020263201496715,
+      "median_runtime_gain": -0.03401461848180665,
+      "p10_runtime_gain": -0.036393478724570175,
+      "p90_runtime_gain": -0.027761396818321286,
+      "example_bootstrap_gain_ci95_low": -0.03490570304373189,
+      "example_bootstrap_gain_ci95_high": -0.027603955762343726,
+      "positive_runtime_gain_rate": 0.0,
+      "mean_speedup": 0.9690092949439982,
+      "mean_generation_reference_opportunity": 0.4822148556468073,
+      "mean_total_row_removal_fraction": 0.2202135703496428,
+      "profitability_pass": 0
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "safe_c095_s2",
+      "examples": 10,
+      "timed_pairs": 50,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.356306364061311,
+      "median_a3_latency_s": 3.4713898255722597,
+      "mean_runtime_gain": -0.03146158047315071,
+      "median_runtime_gain": -0.034456541366357785,
+      "p10_runtime_gain": -0.036710950142827416,
+      "p90_runtime_gain": -0.01493275488926966,
+      "example_bootstrap_gain_ci95_low": -0.03441413127377694,
+      "example_bootstrap_gain_ci95_high": -0.027155104666656514,
+      "positive_runtime_gain_rate": 0.02,
+      "mean_speedup": 0.9695601460995366,
+      "mean_generation_reference_opportunity": 0.4766369422643049,
+      "mean_total_row_removal_fraction": 0.21767859123453076,
+      "profitability_pass": 0
+    }
+  ],
+  "pooled_by_semantic_mode": [
+    {
+      "dataset": "pooled",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "examples": 25,
+      "timed_pairs": 125,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.3034563129767776,
+      "median_a3_latency_s": 3.4329173639416695,
+      "mean_runtime_gain": -0.023575990249963926,
+      "median_runtime_gain": -0.0330748564965373,
+      "p10_runtime_gain": -0.036475535550140534,
+      "p90_runtime_gain": 0.005948628761977906,
+      "example_bootstrap_gain_ci95_low": -0.03016930445109213,
+      "example_bootstrap_gain_ci95_high": -0.016079486949176387,
+      "positive_runtime_gain_rate": 0.2,
+      "mean_speedup": 0.9772955097791554,
+      "mean_generation_reference_opportunity": 0.48361545509546,
+      "mean_total_row_removal_fraction": 0.21897704573408763,
+      "profitability_pass": 0
+    },
+    {
+      "dataset": "pooled",
+      "semantic_label": "safe_c095_s2",
+      "examples": 25,
+      "timed_pairs": 125,
+      "a3_exact_a2_rate": 1.0,
+      "answer_or_correctness_change_rate": 0.0,
+      "median_a2_latency_s": 3.4064819919876754,
+      "median_a3_latency_s": 3.524468593997881,
+      "mean_runtime_gain": -0.023172115860434918,
+      "median_runtime_gain": -0.033237853132474626,
+      "p10_runtime_gain": -0.03685485748818076,
+      "p90_runtime_gain": 0.005754418106642085,
+      "example_bootstrap_gain_ci95_low": -0.029480128031248012,
+      "example_bootstrap_gain_ci95_high": -0.01582924965748897,
+      "positive_runtime_gain_rate": 0.216,
+      "mean_speedup": 0.9776873889729109,
+      "mean_generation_reference_opportunity": 0.4800329931345398,
+      "mean_total_row_removal_fraction": 0.21713767179675733,
+      "profitability_pass": 0
+    }
+  ],
+  "execution_order_check": [
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 30,
+      "mean_runtime_gain": -0.03183750870556533
+    },
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 20,
+      "mean_runtime_gain": -0.03212931234970166
+    },
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 30,
+      "mean_runtime_gain": -0.03246132731445496
+    },
+    {
+      "dataset": "gsm8k",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 20,
+      "mean_runtime_gain": -0.02951907554312639
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 15,
+      "mean_runtime_gain": 0.009994739191067407
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 10,
+      "mean_runtime_gain": 0.010180479912432738
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 15,
+      "mean_runtime_gain": 0.009734636096746038
+    },
+    {
+      "dataset": "humaneval",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 10,
+      "mean_runtime_gain": 0.009476632994815682
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 30,
+      "mean_runtime_gain": -0.03215463962463026
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "aggressive_c090_age4_s8",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 20,
+      "mean_runtime_gain": -0.03181869856679639
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A2_then_A3",
+      "timed_pairs": 30,
+      "mean_runtime_gain": -0.031051762250577594
+    },
+    {
+      "dataset": "math500",
+      "semantic_label": "safe_c095_s2",
+      "execution_order": "A3_then_A2",
+      "timed_pairs": 20,
+      "mean_runtime_gain": -0.03207630780701039
+    }
+  ]
+}

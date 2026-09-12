@@ -137,9 +137,16 @@ their assumptions can be audited rather than conflated.
   the exact P2 reference plan for paired P3 comparison.
 - **v7:** added manifest-driven early/middle/late representation sweeps and the
   `capped_drift` policy, including time-weighted reference-opportunity logging.
+- **v8:** added a clean-device, repeated paired A2/A3 benchmark with fixed plan
+  hashes, alternating backend order, example-level bootstrap intervals, and a
+  fail-closed GPU-contamination check. The first confirmation found packed row
+  removal unprofitable at 64/64 but modestly profitable at 128/128, motivating
+  a workload-aware compute gate rather than unconditional A3 execution.
 
 The current row-sparse implementation deliberately uses a correctness-first
 reference implementation: it computes active queries and FFN rows but assembles
 a full K/V tensor and calls the dense attention primitive. Therefore a negative
 wall-clock gain is a valid systems result for this implementation, but it does
 not prove that a fused sparse kernel could not be profitable.
+
+See `compute_lock_v1_results.md` for the fixed-plan wall-clock audit.
