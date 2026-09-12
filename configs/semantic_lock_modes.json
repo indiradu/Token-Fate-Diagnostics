@@ -1,0 +1,28 @@
+{
+  "semantic_policies": [
+    {
+      "label": "safe_c095_s2",
+      "policy": "capped_confidence",
+      "semantic_lock_fraction": 0.06,
+      "semantic_min_confidence": 0.95,
+      "semantic_min_margin": 0.0,
+      "semantic_max_kl": null,
+      "semantic_min_runlength": 1,
+      "semantic_min_block_age": 0,
+      "semantic_optional_steps_per_block": 2,
+      "semantic_require_posterior_history": false
+    },
+    {
+      "label": "aggressive_c090_age4_s8",
+      "policy": "capped_confidence",
+      "semantic_lock_fraction": 0.06,
+      "semantic_min_confidence": 0.9,
+      "semantic_min_margin": 0.0,
+      "semantic_max_kl": null,
+      "semantic_min_runlength": 1,
+      "semantic_min_block_age": 4,
+      "semantic_optional_steps_per_block": 8,
+      "semantic_require_posterior_history": false
+    }
+  ]
+}

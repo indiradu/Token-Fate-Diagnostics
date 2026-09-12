@@ -3,6 +3,8 @@ from __future__ import annotations
 import torch
 
 from regret_remasking.phase_lock import (
+    representation_ready,
+    select_representation_lock,
     select_semantic_transfer,
     semantic_gate_eligible,
     semantic_priority,
@@ -186,3 +188,48 @@ def test_semantic_gate_abstains_without_history_or_outside_step_window() -> None
     assert not no_history.any()
     assert not too_late.any()
     assert not too_early.any()
+
+
+def test_capped_drift_requires_gate_patience_and_age() -> None:
+    drift = torch.tensor([[0.001, 0.003, 0.001, 0.001]])
+    ready = representation_ready(
+        "capped_drift",
+        drift,
+        confidence=torch.ones_like(drift),
+        kl=torch.zeros_like(drift),
+        runlength=torch.ones_like(drift),
+        age=torch.tensor([[2, 2, 0, 2]]),
+        below_threshold_count=torch.tensor([[2, 2, 2, 1]]),
+        threshold=0.002,
+        patience=2,
+        min_age=1,
+    )
+
+    assert torch.equal(ready, torch.tensor([[True, False, False, False]]))
+
+
+def test_capped_drift_ranks_lowest_drift_under_candidate_budget() -> None:
+    candidate = torch.tensor([[True, True, True, True, False]])
+    ready = torch.tensor([[True, True, False, True, True]])
+    drift = torch.tensor([[0.004, 0.001, 0.0001, 0.003, 0.00001]])
+
+    selected = select_representation_lock(
+        candidate,
+        ready,
+        drift,
+        lock_fraction=0.5,
+    )
+
+    # The candidate budget is ceil(0.5 * 4) = 2. Position 4 is ready but is
+    # not semantically committed, and position 2 is a candidate but not ready.
+    assert torch.equal(selected, torch.tensor([[False, True, False, True, False]]))
+
+
+def test_zero_representation_fraction_abstains() -> None:
+    candidate = torch.ones((1, 3), dtype=torch.bool)
+    ready = torch.ones_like(candidate)
+    drift = torch.zeros((1, 3))
+
+    selected = select_representation_lock(candidate, ready, drift, lock_fraction=0.0)
+
+    assert not selected.any()

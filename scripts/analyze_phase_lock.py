@@ -71,6 +71,12 @@ def _pair(reference: dict[str, Any], candidate: dict[str, Any], label: str) -> d
         "runtime_gain": 1.0 - float(candidate["latency_s"]) / max(float(reference["latency_s"]), 1e-9),
         "reference_nfe": int(reference["nfe"]),
         "candidate_nfe": int(candidate["nfe"]),
+        "reference_lock_count": int(reference.get("reference_lock_count", 0)),
+        "candidate_lock_count": int(candidate.get("reference_lock_count", 0)),
+        "candidate_reference_token_forwards": int(candidate.get("reference_token_forwards", 0)),
+        "candidate_reference_opportunity_fraction": float(
+            candidate.get("reference_opportunity_fraction", 0.0)
+        ),
     }
 
 
@@ -241,6 +247,13 @@ def main() -> None:
                 "positive_runtime_gain_rate": sum(float(r["runtime_gain"]) > 0 for r in rows) / len(rows),
                 "mean_reference_nfe": sum(int(r["reference_nfe"]) for r in rows) / len(rows),
                 "mean_candidate_nfe": sum(int(r["candidate_nfe"]) for r in rows) / len(rows),
+                "mean_candidate_lock_count": sum(int(r["candidate_lock_count"]) for r in rows) / len(rows),
+                "mean_candidate_reference_token_forwards": sum(
+                    int(r["candidate_reference_token_forwards"]) for r in rows
+                ) / len(rows),
+                "mean_candidate_reference_opportunity_fraction": sum(
+                    float(r["candidate_reference_opportunity_fraction"]) for r in rows
+                ) / len(rows),
             }
         )
     (output / "summary.json").write_text(json.dumps(summaries, indent=2), encoding="utf-8")
@@ -254,7 +267,8 @@ def main() -> None:
             f"- `{row['pair']}`: exact={row['exact_sequence_match_rate']:.3f}, "
             f"answer_changed={row['answer_changed_rate']:.3f}, "
             f"reference→candidate harm={row['reference_correct_candidate_incorrect_rate']:.3f}, "
-            f"runtime_gain={row['mean_runtime_gain']:.3f}."
+            f"runtime_gain={row['mean_runtime_gain']:.3f}, "
+            f"reference_opportunity={row['mean_candidate_reference_opportunity_fraction']:.3f}."
         )
     (output / "summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     ledger = _load_ledger(args.input_dir / "phase_ledger.jsonl")

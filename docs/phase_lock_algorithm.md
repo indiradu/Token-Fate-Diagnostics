@@ -40,7 +40,11 @@ After a semantic commit, the identity remains fixed but its hidden state is
 still recomputed. At a later step, the representation controller observes
 cosine drift at a configurable transformer layer. The default rule requires
 drift below a threshold for consecutive observations (`patience`) and a minimum
-post-commit age. Controls include posterior-only and confidence-only gates.
+post-commit age. `capped_drift` additionally limits each step to a fraction of
+the committed-but-live candidates and ranks eligible positions by lowest drift.
+This reuses the gate/rank/budget structure of capped confidence without using a
+semantic signal as evidence of representation convergence. Controls include
+uncapped drift, posterior-only, and confidence-only gates.
 
 The named drift-gate presets are:
 
@@ -131,6 +135,8 @@ their assumptions can be audited rather than conflated.
 - **v6:** added named representation-gate presets and a `row_sparse_packed`
   backend. The packed backend reuses persistent K/V workspaces and preserves
   the exact P2 reference plan for paired P3 comparison.
+- **v7:** added manifest-driven early/middle/late representation sweeps and the
+  `capped_drift` policy, including time-weighted reference-opportunity logging.
 
 The current row-sparse implementation deliberately uses a correctness-first
 reference implementation: it computes active queries and FFN rows but assembles

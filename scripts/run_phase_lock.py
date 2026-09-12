@@ -42,6 +42,7 @@ from regret_remasking.phase_lock import (
     cosine_distance,
     representation_gate_preset,
     representation_ready,
+    select_representation_lock,
     select_semantic_transfer,
     semantic_gate_eligible,
     semantic_priority,
@@ -210,6 +211,7 @@ def decode_one(
     block_runlength = torch.zeros_like(x, dtype=torch.float32)
     nfe = 0
     masked_token_forwards = 0
+    reference_token_forwards = 0
     start = time.perf_counter()
 
     def write_event(event: dict[str, Any]) -> None:
@@ -233,6 +235,7 @@ def decode_one(
                 global_step = block_idx * steps_per_block + step_in_block
                 mask_index = x == config.mask_id
                 masked_token_forwards += int(mask_index[:, prompt_len:].sum().item())
+                reference_token_forwards += int(reference_positions[:, prompt_len:].sum().item())
                 capture.clear()
                 outputs = model(x, attention_mask=attention_mask)
                 logits = outputs.logits
@@ -433,7 +436,29 @@ def decode_one(
                         min_age=policy.representation_min_age,
                     )
                     ready &= candidate
-                    ref_selected = torch.nonzero(ready[0], as_tuple=False).flatten().tolist()
+                    if policy.representation.startswith("capped_"):
+                        selected_references = select_representation_lock(
+                            candidate,
+                            ready,
+                            drift,
+                            policy.representation_lock_fraction,
+                        )
+                    else:
+                        selected_references = ready
+                    ref_selected = torch.nonzero(
+                        selected_references[0], as_tuple=False
+                    ).flatten().tolist()
+                    ready_positions = torch.nonzero(ready[0], as_tuple=False).flatten().tolist()
+                    drift_rank = {
+                        pos: rank
+                        for rank, pos in enumerate(
+                            sorted(
+                                ready_positions,
+                                key=lambda item: (float(drift[0, item].detach().cpu()), item),
+                            ),
+                            start=1,
+                        )
+                    }
                     ref_events_this_step = []
                     for pos in ref_selected:
                         ref_events_this_step.append(
@@ -443,6 +468,10 @@ def decode_one(
                                 "global_step": global_step,
                                 "block": block_idx,
                                 "step_in_block": step_in_block,
+                                "candidate_count": int(candidate[0].sum().item()),
+                                "eligible_count": int(ready[0].sum().item()),
+                                "drift_rank": int(drift_rank[pos]),
+                                "representation_lock_fraction": policy.representation_lock_fraction,
                             }
                         )
                     generated_reference_plan[global_step] = ref_events_this_step
@@ -464,6 +493,9 @@ def decode_one(
                         "representation_layer": representation_layer,
                         "representation_drift": float(drift[0, pos].detach().cpu()),
                         "representation_threshold": policy.representation_threshold,
+                        "representation_patience": policy.representation_patience,
+                        "representation_min_age": policy.representation_min_age,
+                        "representation_lock_fraction": policy.representation_lock_fraction,
                         "below_threshold_count": int(below_count[0, pos].detach().cpu()),
                         "semantic_age": int(semantic_age[0, pos].detach().cpu()),
                         "confidence_online": float(feature_map["confidence"][0, pos].detach().cpu()),
@@ -530,6 +562,13 @@ def decode_one(
             event.get("selection_source") == "accelerated" for event in semantic_events
         ),
         "reference_lock_count": len(reference_events),
+        "reference_token_forwards": reference_token_forwards,
+        "reference_opportunity_fraction": reference_token_forwards / max(1, nfe * config.gen_length),
+        "representation_layer": representation_layer,
+        "representation_threshold": policy.representation_threshold,
+        "representation_patience": policy.representation_patience,
+        "representation_min_age": policy.representation_min_age,
+        "representation_lock_fraction": policy.representation_lock_fraction,
         "prompt_len": prompt_len,
         "gen_length": config.gen_length,
     }
@@ -556,6 +595,8 @@ def _summary(records: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_semantic_commit_count": sum(float(r["semantic_commit_count"]) for r in records) / len(records),
         "mean_accelerated_commit_count": sum(float(r.get("accelerated_commit_count", 0)) for r in records) / len(records),
         "mean_reference_lock_count": sum(float(r["reference_lock_count"]) for r in records) / len(records),
+        "mean_reference_token_forwards": sum(float(r.get("reference_token_forwards", 0)) for r in records) / len(records),
+        "mean_reference_opportunity_fraction": sum(float(r.get("reference_opportunity_fraction", 0.0)) for r in records) / len(records),
     }
 
 
@@ -666,13 +707,100 @@ def _semantic_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
     return resolved
 
 
+def _representation_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
+    """Resolve representation arms from CLI defaults or a JSON manifest."""
+    defaults: dict[str, Any] = {
+        "representation_layer": args.representation_layer,
+        "representation_threshold": args.representation_threshold,
+        "representation_patience": args.representation_patience,
+        "representation_min_age": args.representation_min_age,
+        "representation_lock_fraction": args.representation_lock_fraction,
+    }
+    if args.representation_policy_configs is None:
+        raw_specs: list[dict[str, Any]] = [
+            {"label": name, "policy": name}
+            for name in (item.strip() for item in args.representation_policies.split(","))
+            if name
+        ]
+    else:
+        path = Path(args.representation_policy_configs)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            payload = payload.get("representation_policies")
+        if not isinstance(payload, list):
+            raise ValueError(
+                "representation policy config must be a list or contain a representation_policies list"
+            )
+        raw_specs = payload
+
+    allowed_fields = {"label", "policy", *defaults}
+    supported = {
+        "always",
+        "confidence",
+        "posterior",
+        "surelock",
+        "drift",
+        "representation",
+        "capped_drift",
+        "capped_representation",
+        "drift_posterior",
+        "drift_confidence",
+    }
+    resolved: list[dict[str, Any]] = []
+    seen_labels: set[str] = set()
+    for raw in raw_specs:
+        if not isinstance(raw, dict):
+            raise ValueError("each representation policy config must be an object")
+        unknown = set(raw) - allowed_fields
+        if unknown:
+            raise ValueError(f"unknown representation policy config fields: {sorted(unknown)}")
+        if "label" not in raw or "policy" not in raw:
+            raise ValueError("each representation policy config requires label and policy")
+        label = str(raw["label"])
+        policy = str(raw["policy"])
+        if not _SEMANTIC_LABEL.fullmatch(label):
+            raise ValueError(f"unsafe representation policy label: {label!r}")
+        if label in seen_labels:
+            raise ValueError(f"duplicate representation policy label: {label}")
+        if policy not in supported:
+            raise ValueError(f"unknown representation policy: {policy}")
+        seen_labels.add(label)
+        spec = {**defaults, **raw, "label": label, "policy": policy}
+        spec["representation_layer"] = int(spec["representation_layer"])
+        spec["representation_threshold"] = float(spec["representation_threshold"])
+        spec["representation_patience"] = int(spec["representation_patience"])
+        spec["representation_min_age"] = int(spec["representation_min_age"])
+        spec["representation_lock_fraction"] = float(spec["representation_lock_fraction"])
+        if spec["representation_layer"] < 1:
+            raise ValueError("representation_layer must be at least one")
+        if spec["representation_threshold"] < 0.0:
+            raise ValueError("representation_threshold must be non-negative")
+        if spec["representation_patience"] < 1:
+            raise ValueError("representation_patience must be at least one")
+        if spec["representation_min_age"] < 0:
+            raise ValueError("representation_min_age must be non-negative")
+        if not 0.0 <= spec["representation_lock_fraction"] <= 1.0:
+            raise ValueError("representation_lock_fraction must be in [0, 1]")
+        resolved.append(spec)
+    if not resolved:
+        raise ValueError("no representation policies configured")
+    return resolved
+
+
 def _phase_policy(
     spec: dict[str, Any],
     args: argparse.Namespace,
     *,
     representation: str,
     compute: str,
+    representation_spec: dict[str, Any] | None = None,
 ) -> PhaseLockPolicy:
+    rep = representation_spec or {
+        "representation_threshold": args.representation_threshold,
+        "representation_patience": args.representation_patience,
+        "representation_min_age": args.representation_min_age,
+        "representation_lock_fraction": args.representation_lock_fraction,
+    }
     return PhaseLockPolicy(
         semantic=str(spec["policy"]),
         representation=representation,
@@ -689,9 +817,10 @@ def _phase_policy(
         semantic_min_block_age=int(spec["semantic_min_block_age"]),
         semantic_optional_steps_per_block=int(spec["semantic_optional_steps_per_block"]),
         semantic_require_posterior_history=bool(spec["semantic_require_posterior_history"]),
-        representation_threshold=args.representation_threshold,
-        representation_patience=args.representation_patience,
-        representation_min_age=args.representation_min_age,
+        representation_threshold=float(rep["representation_threshold"]),
+        representation_patience=int(rep["representation_patience"]),
+        representation_min_age=int(rep["representation_min_age"]),
+        representation_lock_fraction=float(rep["representation_lock_fraction"]),
     )
 
 
@@ -713,6 +842,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional JSON sweep manifest; overrides --semantic-policies and semantic gate defaults per arm.",
     )
     parser.add_argument("--representation-policies", default="drift")
+    parser.add_argument(
+        "--representation-policy-configs",
+        default=None,
+        help="Optional JSON sweep manifest; overrides representation policy and gate defaults per arm.",
+    )
     parser.add_argument("--compute-policies", default="row_sparse")
     parser.add_argument("--semantic-lock-fraction", type=float, default=0.06)
     parser.add_argument("--representation-layer", type=int, default=24)
@@ -725,6 +859,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--representation-threshold", type=float, default=0.02)
     parser.add_argument("--representation-patience", type=int, default=2)
     parser.add_argument("--representation-min-age", type=int, default=1)
+    parser.add_argument("--representation-lock-fraction", type=float, default=1.0)
     parser.add_argument("--beta-kl", type=float, default=1.0)
     parser.add_argument("--beta-fate", type=float, default=2.0)
     parser.add_argument("--semantic-min-confidence", type=float, default=0.0)
@@ -753,7 +888,12 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     semantic_specs = _semantic_specs(args)
-    run_config = {**vars(args), "resolved_semantic_policies": semantic_specs}
+    representation_specs = _representation_specs(args)
+    run_config = {
+        **vars(args),
+        "resolved_semantic_policies": semantic_specs,
+        "resolved_representation_policies": representation_specs,
+    }
     (output_dir / "run_config.json").write_text(
         json.dumps(run_config, indent=2, sort_keys=True), encoding="utf-8"
     )
@@ -776,8 +916,9 @@ def main() -> None:
         from regret_remasking.regret_model import RegretScorer
 
         scorer = RegretScorer(args.regret_model_path)
-    representation_policies = [item.strip() for item in args.representation_policies.split(",") if item.strip()]
     compute_policies = [item.strip() for item in args.compute_policies.split(",") if item.strip()]
+    if any(name not in {"dense", "kv_cache", "row_sparse", "row_sparse_packed"} for name in compute_policies):
+        raise ValueError("compute policies must be dense, kv_cache, row_sparse, and/or row_sparse_packed")
     ledger = (output_dir / "phase_ledger.jsonl").open("w", encoding="utf-8")
     records_by_arm: dict[str, list[dict[str, Any]]] = {}
     plans_path = output_dir / "phase_plans.jsonl"
@@ -798,14 +939,16 @@ def main() -> None:
                 a1, semantic_plan, _ = decode_one(model, tokenizer, example, config, p, arm1, scorer, ledger_handle=ledger, representation_layer=args.representation_layer)
                 records_by_arm.setdefault(arm1, []).append(a1)
                 _append_jsonl(output_dir / f"{arm1}.jsonl", a1)
-                for representation_name in representation_policies:
-                    if any(name not in {"dense", "kv_cache", "row_sparse", "row_sparse_packed"} for name in compute_policies):
-                        raise ValueError("compute policies must be dense, kv_cache, row_sparse, and/or row_sparse_packed")
+                for representation_spec in representation_specs:
+                    representation_name = str(representation_spec["label"])
+                    representation_policy = str(representation_spec["policy"])
+                    representation_layer = int(representation_spec["representation_layer"])
                     p2 = _phase_policy(
                         semantic_spec,
                         args,
-                        representation=representation_name,
+                        representation=representation_policy,
                         compute="kv_cache",
+                        representation_spec=representation_spec,
                     )
                     # A2 is the reference-lock arm. It is required whenever
                     # either KV reuse or row-sparse compute is requested because
@@ -817,7 +960,7 @@ def main() -> None:
                         a2, _, reference_plan = decode_one(
                             model, tokenizer, example, config, p2, arm2, scorer,
                             semantic_plan=semantic_plan, ledger_handle=ledger,
-                            representation_layer=args.representation_layer,
+                            representation_layer=representation_layer,
                         )
                         records_by_arm.setdefault(arm2, []).append(a2)
                         _append_jsonl(output_dir / f"{arm2}.jsonl", a2)
@@ -825,14 +968,15 @@ def main() -> None:
                         p3 = _phase_policy(
                             semantic_spec,
                             args,
-                            representation=representation_name,
+                            representation=representation_policy,
                             compute=compute_name,
+                            representation_spec=representation_spec,
                         )
                         arm3 = f"P3_{semantic_name}_{representation_name}_{compute_name}"
                         a3, _, _ = decode_one(
                             model, tokenizer, example, config, p3, arm3, scorer,
                             semantic_plan=semantic_plan, reference_plan=reference_plan,
-                            ledger_handle=ledger, representation_layer=args.representation_layer,
+                            ledger_handle=ledger, representation_layer=representation_layer,
                         )
                         records_by_arm.setdefault(arm3, []).append(a3)
                         _append_jsonl(output_dir / f"{arm3}.jsonl", a3)
@@ -843,7 +987,9 @@ def main() -> None:
                             "semantic_policy": semantic_spec["policy"],
                             "semantic_policy_label": semantic_name,
                             "semantic_policy_config": semantic_spec,
-                            "representation_policy": representation_name,
+                            "representation_policy": representation_policy,
+                            "representation_policy_label": representation_name,
+                            "representation_policy_config": representation_spec,
                             "compute_policies_requested": compute_policies,
                             "semantic_plan": _json_plan(semantic_plan),
                             "reference_plan": _json_plan(reference_plan),

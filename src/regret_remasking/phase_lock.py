@@ -7,6 +7,7 @@ the decoder owns the actual irreversible state transition and compute backend.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -47,6 +48,7 @@ class PhaseLockPolicy:
     representation_threshold: float = 0.02
     representation_patience: int = 2
     representation_min_age: int = 1
+    representation_lock_fraction: float = 1.0
 
 
 def cosine_distance(current: torch.Tensor, previous: torch.Tensor) -> torch.Tensor:
@@ -246,13 +248,51 @@ def representation_ready(
         return (confidence >= threshold) & (age >= min_age)
     if policy in {"posterior", "surelock"}:
         return (kl <= threshold) & (age >= min_age)
-    if policy in {"drift", "representation"}:
+    if policy in {"drift", "representation", "capped_drift", "capped_representation"}:
         return (drift <= threshold) & (below_threshold_count >= patience) & (age >= min_age)
     if policy == "drift_posterior":
         return (drift <= threshold) & (kl <= threshold) & (below_threshold_count >= patience) & (age >= min_age)
     if policy == "drift_confidence":
         return (drift <= threshold) & (confidence >= 0.5) & (below_threshold_count >= patience) & (age >= min_age)
     raise ValueError(f"unknown representation policy: {policy}")
+
+
+def select_representation_lock(
+    candidate: torch.Tensor,
+    ready: torch.Tensor,
+    drift: torch.Tensor,
+    lock_fraction: float,
+) -> torch.Tensor:
+    """Select the lowest-drift ready references under a per-step cap.
+
+    ``candidate`` is the set of semantically committed but still-live rows.
+    The cap is computed from that set, not from the smaller ready set, so a
+    stricter gate cannot accidentally receive a larger relative budget.  A
+    zero fraction abstains; a fraction of one reproduces uncapped locking.
+    """
+    if candidate.ndim != 2:
+        raise ValueError(f"candidate must be [batch, length], got {tuple(candidate.shape)}")
+    if ready.shape != candidate.shape or drift.shape != candidate.shape:
+        raise ValueError("candidate, ready, and drift must have identical shapes")
+    if not 0.0 <= lock_fraction <= 1.0:
+        raise ValueError("representation lock fraction must be in [0, 1]")
+
+    selected = torch.zeros_like(candidate, dtype=torch.bool)
+    eligible = candidate & ready
+    for batch_idx in range(candidate.shape[0]):
+        candidate_count = int(candidate[batch_idx].sum().item())
+        eligible_count = int(eligible[batch_idx].sum().item())
+        if candidate_count == 0 or eligible_count == 0 or lock_fraction == 0.0:
+            continue
+        budget = min(eligible_count, int(math.ceil(lock_fraction * candidate_count)))
+        scores = torch.where(
+            eligible[batch_idx],
+            -drift[batch_idx],
+            torch.full_like(drift[batch_idx], -torch.inf),
+        )
+        indices = torch.topk(scores, k=budget).indices
+        selected[batch_idx, indices] = True
+    return selected
 
 
 def compute_mode_name(policy: str) -> str:
