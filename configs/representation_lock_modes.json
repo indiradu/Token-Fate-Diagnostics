@@ -1,0 +1,22 @@
+{
+  "representation_policies": [
+    {
+      "label": "robust_delayed_one_update",
+      "policy": "always",
+      "representation_layer": 8,
+      "representation_threshold": 0.0,
+      "representation_patience": 1,
+      "representation_min_age": 1,
+      "representation_lock_fraction": 1.0
+    },
+    {
+      "label": "aggressive_immediate_same_step",
+      "policy": "always",
+      "representation_layer": 8,
+      "representation_threshold": 0.0,
+      "representation_patience": 1,
+      "representation_min_age": 0,
+      "representation_lock_fraction": 1.0
+    }
+  ]
+}

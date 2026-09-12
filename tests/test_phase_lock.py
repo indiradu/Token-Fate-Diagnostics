@@ -233,3 +233,63 @@ def test_zero_representation_fraction_abstains() -> None:
     selected = select_representation_lock(candidate, ready, drift, lock_fraction=0.0)
 
     assert not selected.any()
+
+
+def test_high_drift_control_reverses_only_ranking() -> None:
+    candidate = torch.tensor([[True, True, True, True]])
+    ready = torch.tensor([[True, True, True, True]])
+    drift = torch.tensor([[0.004, 0.001, 0.009, 0.003]])
+
+    low = select_representation_lock(
+        candidate, ready, drift, lock_fraction=1.0, budget_override=2
+    )
+    high = select_representation_lock(
+        candidate,
+        ready,
+        drift,
+        lock_fraction=1.0,
+        budget_override=2,
+        prefer_high_drift=True,
+    )
+
+    assert torch.equal(low, torch.tensor([[False, True, False, True]]))
+    assert torch.equal(high, torch.tensor([[True, False, True, False]]))
+    assert int(low.sum()) == int(high.sum()) == 2
+
+
+def test_matched_representation_budget_is_exact_and_validated() -> None:
+    candidate = torch.tensor([[True, True, True]])
+    ready = torch.tensor([[True, False, True]])
+    drift = torch.tensor([[0.01, 0.02, 0.03]])
+
+    selected = select_representation_lock(
+        candidate, ready, drift, lock_fraction=0.0, budget_override=2
+    )
+    assert torch.equal(selected, ready)
+
+    try:
+        select_representation_lock(
+            candidate, ready, drift, lock_fraction=1.0, budget_override=3
+        )
+    except ValueError as exc:
+        assert "exceeds eligible" in str(exc)
+    else:
+        raise AssertionError("an impossible matched budget must fail")
+
+
+def test_high_drift_control_uses_age_for_candidate_admission() -> None:
+    drift = torch.tensor([[0.001, 0.200, 0.500]])
+    ready = representation_ready(
+        "capped_high_drift",
+        drift,
+        confidence=torch.ones_like(drift),
+        kl=torch.zeros_like(drift),
+        runlength=torch.ones_like(drift),
+        age=torch.tensor([[0, 1, 2]]),
+        below_threshold_count=torch.zeros_like(drift, dtype=torch.long),
+        threshold=0.002,
+        patience=4,
+        min_age=1,
+    )
+
+    assert torch.equal(ready, torch.tensor([[False, True, True]]))

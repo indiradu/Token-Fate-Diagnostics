@@ -158,6 +158,8 @@ def decode_one(
     scorer: Any | None,
     semantic_plan: dict[int, list[dict[str, Any]]] | None = None,
     reference_plan: dict[int, list[dict[str, Any]]] | None = None,
+    generate_reference_plan: bool = False,
+    reference_budget_plan: dict[int, int] | None = None,
     ledger_handle: Any | None = None,
     representation_layer: int = 24,
 ) -> tuple[dict[str, Any], dict[int, list[dict[str, Any]]], dict[int, list[dict[str, Any]]]]:
@@ -196,6 +198,7 @@ def decode_one(
         runtime.install()
     semantic_events: list[dict[str, Any]] = []
     reference_events: list[dict[str, Any]] = []
+    reference_plan_events: list[dict[str, Any]] = []
     generated_semantic_plan: dict[int, list[dict[str, Any]]] = {}
     generated_reference_plan: dict[int, list[dict[str, Any]]] = {}
     semantic_positions = torch.zeros((1, total_len), dtype=torch.bool, device=device)
@@ -419,9 +422,18 @@ def decode_one(
                     ref_events_this_step = []
                     for event in reference_plan.get(global_step, []):
                         pos = int(event["position"])
+                        if not bool(semantic_positions[0, pos]):
+                            raise RuntimeError(
+                                f"reference replay position {pos} is not semantically committed "
+                                f"at step {global_step}"
+                            )
+                        if bool(reference_positions[0, pos]):
+                            raise RuntimeError(
+                                f"reference replay position {pos} was already frozen before step {global_step}"
+                            )
                         ref_selected.append(pos)
                         ref_events_this_step.append(dict(event))
-                elif runtime is not None:
+                elif runtime is not None or generate_reference_plan:
                     candidate = semantic_positions & ~reference_positions
                     ready = representation_ready(
                         policy.representation,
@@ -437,11 +449,16 @@ def decode_one(
                     )
                     ready &= candidate
                     if policy.representation.startswith("capped_"):
+                        budget_override = None
+                        if reference_budget_plan is not None:
+                            budget_override = int(reference_budget_plan.get(global_step, 0))
                         selected_references = select_representation_lock(
                             candidate,
                             ready,
                             drift,
                             policy.representation_lock_fraction,
+                            budget_override=budget_override,
+                            prefer_high_drift=policy.representation == "capped_high_drift",
                         )
                     else:
                         selected_references = ready
@@ -449,12 +466,18 @@ def decode_one(
                         selected_references[0], as_tuple=False
                     ).flatten().tolist()
                     ready_positions = torch.nonzero(ready[0], as_tuple=False).flatten().tolist()
+                    prefer_high_drift = policy.representation == "capped_high_drift"
                     drift_rank = {
                         pos: rank
                         for rank, pos in enumerate(
                             sorted(
                                 ready_positions,
-                                key=lambda item: (float(drift[0, item].detach().cpu()), item),
+                                key=lambda item: (
+                                    -float(drift[0, item].detach().cpu())
+                                    if prefer_high_drift
+                                    else float(drift[0, item].detach().cpu()),
+                                    item,
+                                ),
                             ),
                             start=1,
                         )
@@ -470,8 +493,15 @@ def decode_one(
                                 "step_in_block": step_in_block,
                                 "candidate_count": int(candidate[0].sum().item()),
                                 "eligible_count": int(ready[0].sum().item()),
+                                "representation_drift": float(drift[0, pos].detach().cpu()),
                                 "drift_rank": int(drift_rank[pos]),
+                                "drift_rank_direction": "descending" if prefer_high_drift else "ascending",
                                 "representation_lock_fraction": policy.representation_lock_fraction,
+                                "matched_budget": (
+                                    None
+                                    if reference_budget_plan is None
+                                    else int(reference_budget_plan.get(global_step, 0))
+                                ),
                             }
                         )
                     generated_reference_plan[global_step] = ref_events_this_step
@@ -479,8 +509,9 @@ def decode_one(
                     ref_selected = []
                     ref_events_this_step = []
 
-                if runtime is not None and ref_selected:
-                    runtime.commit(ref_selected)
+                if ref_selected:
+                    if runtime is not None:
+                        runtime.commit(ref_selected)
                     reference_positions[0, ref_selected] = True
                 for event in ref_events_this_step:
                     pos = int(event["position"])
@@ -488,7 +519,7 @@ def decode_one(
                         **event,
                         "example_id": example.example_id,
                         "arm": arm,
-                        "phase": "reference_lock",
+                        "phase": "reference_plan" if generate_reference_plan else "reference_lock",
                         "representation_policy": policy.representation,
                         "representation_layer": representation_layer,
                         "representation_drift": float(drift[0, pos].detach().cpu()),
@@ -501,7 +532,10 @@ def decode_one(
                         "confidence_online": float(feature_map["confidence"][0, pos].detach().cpu()),
                         "kl_online": float(feature_map["kl"][0, pos].detach().cpu()),
                     }
-                    reference_events.append(event)
+                    if generate_reference_plan:
+                        reference_plan_events.append(event)
+                    else:
+                        reference_events.append(event)
                     write_event(event)
 
                 # Every currently committed but unfrozen position gets a compact
@@ -562,8 +596,12 @@ def decode_one(
             event.get("selection_source") == "accelerated" for event in semantic_events
         ),
         "reference_lock_count": len(reference_events),
+        "reference_plan_count": len(reference_plan_events),
         "reference_token_forwards": reference_token_forwards,
         "reference_opportunity_fraction": reference_token_forwards / max(1, nfe * config.gen_length),
+        "reference_plan_source": (
+            "dense_a1" if generate_reference_plan else "replay" if reference_plan is not None else "online_a2"
+        ),
         "representation_layer": representation_layer,
         "representation_threshold": policy.representation_threshold,
         "representation_patience": policy.representation_patience,
@@ -733,7 +771,7 @@ def _representation_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
             )
         raw_specs = payload
 
-    allowed_fields = {"label", "policy", *defaults}
+    allowed_fields = {"label", "policy", "match_reference_counts_from", *defaults}
     supported = {
         "always",
         "confidence",
@@ -743,6 +781,7 @@ def _representation_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
         "representation",
         "capped_drift",
         "capped_representation",
+        "capped_high_drift",
         "drift_posterior",
         "drift_confidence",
     }
@@ -771,6 +810,8 @@ def _representation_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
         spec["representation_patience"] = int(spec["representation_patience"])
         spec["representation_min_age"] = int(spec["representation_min_age"])
         spec["representation_lock_fraction"] = float(spec["representation_lock_fraction"])
+        if "match_reference_counts_from" in spec:
+            spec["match_reference_counts_from"] = str(spec["match_reference_counts_from"])
         if spec["representation_layer"] < 1:
             raise ValueError("representation_layer must be at least one")
         if spec["representation_threshold"] < 0.0:
@@ -784,6 +825,22 @@ def _representation_specs(args: argparse.Namespace) -> list[dict[str, Any]]:
         resolved.append(spec)
     if not resolved:
         raise ValueError("no representation policies configured")
+    labels_seen_in_order: set[str] = set()
+    layers_by_label: dict[str, int] = {}
+    for spec in resolved:
+        match = spec.get("match_reference_counts_from")
+        if match is not None:
+            if spec["policy"] != "capped_high_drift":
+                raise ValueError("match_reference_counts_from is only valid for capped_high_drift")
+            if match not in labels_seen_in_order:
+                raise ValueError(
+                    "matched reference policy must appear earlier in the manifest: "
+                    f"{match}"
+                )
+            if int(spec["representation_layer"]) != layers_by_label[match]:
+                raise ValueError("matched low/high representation policies must use the same layer")
+        labels_seen_in_order.add(str(spec["label"]))
+        layers_by_label[str(spec["label"])] = int(spec["representation_layer"])
     return resolved
 
 
@@ -831,6 +888,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", default="test")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument(
+        "--example-indices",
+        default=None,
+        help="Optional comma-separated absolute dataset indices; overrides --limit/--offset.",
+    )
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--steps", type=int, default=64)
     parser.add_argument("--gen-length", type=int, default=64)
@@ -848,6 +910,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional JSON sweep manifest; overrides representation policy and gate defaults per arm.",
     )
     parser.add_argument("--compute-policies", default="row_sparse")
+    parser.add_argument(
+        "--reference-plan-source",
+        choices=["dense_a1", "online_a2"],
+        default="dense_a1",
+        help="Generate fixed reference plans from dense A1 traces (recommended) or adapt online inside A2.",
+    )
     parser.add_argument("--semantic-lock-fraction", type=float, default=0.06)
     parser.add_argument("--representation-layer", type=int, default=24)
     parser.add_argument(
@@ -889,6 +957,10 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     semantic_specs = _semantic_specs(args)
     representation_specs = _representation_specs(args)
+    if args.reference_plan_source != "dense_a1" and any(
+        spec.get("match_reference_counts_from") is not None for spec in representation_specs
+    ):
+        raise ValueError("matched representation controls require --reference-plan-source dense_a1")
     run_config = {
         **vars(args),
         "resolved_semantic_policies": semantic_specs,
@@ -897,7 +969,22 @@ def main() -> None:
     (output_dir / "run_config.json").write_text(
         json.dumps(run_config, indent=2, sort_keys=True), encoding="utf-8"
     )
-    examples = load_examples(args.dataset, args.split, args.limit, offset=args.offset)
+    if args.example_indices:
+        example_indices = [int(item.strip()) for item in args.example_indices.split(",") if item.strip()]
+        if not example_indices or any(index < 0 for index in example_indices):
+            raise ValueError("example indices must be a non-empty list of non-negative integers")
+        if len(example_indices) != len(set(example_indices)):
+            raise ValueError("example indices must not contain duplicates")
+        examples = [
+            loaded[0]
+            for dataset_index in example_indices
+            for loaded in [load_examples(args.dataset, args.split, 1, offset=dataset_index)]
+            if loaded
+        ]
+        if len(examples) != len(example_indices):
+            raise ValueError("one or more requested example indices are outside the dataset")
+    else:
+        examples = load_examples(args.dataset, args.split, args.limit, offset=args.offset)
     if not examples:
         raise ValueError("no examples loaded")
     model, tokenizer = load_llada(args.model_name, device=args.device, dtype=args.dtype)
@@ -939,6 +1026,7 @@ def main() -> None:
                 a1, semantic_plan, _ = decode_one(model, tokenizer, example, config, p, arm1, scorer, ledger_handle=ledger, representation_layer=args.representation_layer)
                 records_by_arm.setdefault(arm1, []).append(a1)
                 _append_jsonl(output_dir / f"{arm1}.jsonl", a1)
+                reference_plan_cache: dict[str, dict[int, list[dict[str, Any]]]] = {}
                 for representation_spec in representation_specs:
                     representation_name = str(representation_spec["label"])
                     representation_policy = str(representation_spec["policy"])
@@ -956,12 +1044,60 @@ def main() -> None:
                     reference_plan: dict[int, list[dict[str, Any]]] = {}
                     wants_row_sparse = any(name in {"row_sparse", "row_sparse_packed"} for name in compute_policies)
                     if "kv_cache" in compute_policies or wants_row_sparse:
+                        if args.reference_plan_source == "dense_a1":
+                            matched_label = representation_spec.get("match_reference_counts_from")
+                            budget_plan = None
+                            if matched_label is not None:
+                                if matched_label not in reference_plan_cache:
+                                    raise RuntimeError(
+                                        f"matched reference plan {matched_label!r} has not been generated"
+                                    )
+                                budget_plan = {
+                                    step: len(events)
+                                    for step, events in reference_plan_cache[matched_label].items()
+                                }
+                            plan_arm = f"RP_{semantic_name}_{representation_name}_dense_a1"
+                            planner_policy = _phase_policy(
+                                semantic_spec,
+                                args,
+                                representation=representation_policy,
+                                compute="dense",
+                                representation_spec=representation_spec,
+                            )
+                            planner, _, reference_plan = decode_one(
+                                model,
+                                tokenizer,
+                                example,
+                                config,
+                                planner_policy,
+                                plan_arm,
+                                scorer,
+                                semantic_plan=semantic_plan,
+                                generate_reference_plan=True,
+                                reference_budget_plan=budget_plan,
+                                ledger_handle=ledger,
+                                representation_layer=representation_layer,
+                            )
+                            if planner["token_ids"] != a1["token_ids"]:
+                                raise RuntimeError(
+                                    f"dense reference planner changed A1 output for {example.example_id}, "
+                                    f"semantic={semantic_name}, representation={representation_name}"
+                                )
+                            records_by_arm.setdefault(plan_arm, []).append(planner)
+                            _append_jsonl(output_dir / f"{plan_arm}.jsonl", planner)
+                            reference_plan_cache[representation_name] = reference_plan
                         arm2 = f"P2_{semantic_name}_{representation_name}_kv_cache"
                         a2, _, reference_plan = decode_one(
                             model, tokenizer, example, config, p2, arm2, scorer,
-                            semantic_plan=semantic_plan, ledger_handle=ledger,
+                            semantic_plan=semantic_plan,
+                            reference_plan=(
+                                reference_plan if args.reference_plan_source == "dense_a1" else None
+                            ),
+                            ledger_handle=ledger,
                             representation_layer=representation_layer,
                         )
+                        if args.reference_plan_source == "online_a2":
+                            reference_plan_cache[representation_name] = reference_plan
                         records_by_arm.setdefault(arm2, []).append(a2)
                         _append_jsonl(output_dir / f"{arm2}.jsonl", a2)
                     for compute_name in [name for name in compute_policies if name in {"row_sparse", "row_sparse_packed"}]:

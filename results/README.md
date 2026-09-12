@@ -18,6 +18,7 @@ and can contain complete model generations.
 | `robustness_llada_math500_highconf_paired/` | disjoint MATH500 aggregate intervention and bootstrap artifacts | Cross-task exploratory replication. |
 | `logit_lens_suite_30_r3/` | layer and slice summaries plus attention-probe results | Mechanistic logit-lens and attention diagnostics. |
 | `token_fate_layerwise_wide_30_r2/probes/` | aggregate layerwise probe metrics and fate summaries | Hidden-state probe comparison. |
+| `representation_lock_v2/` | matched-drift development and untouched confirmation summaries | Fixed-plan PhaseLock representation-policy selection. |
 
 Every strict-intervention directory includes its aggregate group summary and
 paired bootstrap comparisons where applicable.
@@ -26,3 +27,4 @@ For definitions, split rules, and interpretation, read:
 
 - `../docs/causal_robustness_protocol.md`
 - `../docs/causal_robustness_results.md`
+- `../docs/representation_lock_v2_results.md`

@@ -250,6 +250,11 @@ def representation_ready(
         return (kl <= threshold) & (age >= min_age)
     if policy in {"drift", "representation", "capped_drift", "capped_representation"}:
         return (drift <= threshold) & (below_threshold_count >= patience) & (age >= min_age)
+    if policy == "capped_high_drift":
+        # Causal stress control: admission is matched only on post-commit age;
+        # the selector ranks the largest observed drift first and receives the
+        # exact per-step budget of a low-drift plan.
+        return age >= min_age
     if policy == "drift_posterior":
         return (drift <= threshold) & (kl <= threshold) & (below_threshold_count >= patience) & (age >= min_age)
     if policy == "drift_confidence":
@@ -262,6 +267,9 @@ def select_representation_lock(
     ready: torch.Tensor,
     drift: torch.Tensor,
     lock_fraction: float,
+    *,
+    budget_override: int | None = None,
+    prefer_high_drift: bool = False,
 ) -> torch.Tensor:
     """Select the lowest-drift ready references under a per-step cap.
 
@@ -269,6 +277,9 @@ def select_representation_lock(
     The cap is computed from that set, not from the smaller ready set, so a
     stricter gate cannot accidentally receive a larger relative budget.  A
     zero fraction abstains; a fraction of one reproduces uncapped locking.
+    ``budget_override`` is used by matched controls to reproduce another
+    plan's exact per-step lock count. ``prefer_high_drift`` reverses only the
+    drift ranking, leaving candidate admission and the budget unchanged.
     """
     if candidate.ndim != 2:
         raise ValueError(f"candidate must be [batch, length], got {tuple(candidate.shape)}")
@@ -276,18 +287,28 @@ def select_representation_lock(
         raise ValueError("candidate, ready, and drift must have identical shapes")
     if not 0.0 <= lock_fraction <= 1.0:
         raise ValueError("representation lock fraction must be in [0, 1]")
+    if budget_override is not None and budget_override < 0:
+        raise ValueError("representation budget override must be non-negative")
 
     selected = torch.zeros_like(candidate, dtype=torch.bool)
     eligible = candidate & ready
     for batch_idx in range(candidate.shape[0]):
         candidate_count = int(candidate[batch_idx].sum().item())
         eligible_count = int(eligible[batch_idx].sum().item())
-        if candidate_count == 0 or eligible_count == 0 or lock_fraction == 0.0:
+        if budget_override is not None:
+            if budget_override > eligible_count:
+                raise ValueError(
+                    "representation budget override exceeds eligible candidate count: "
+                    f"{budget_override} > {eligible_count}"
+                )
+            budget = budget_override
+        else:
+            budget = min(eligible_count, int(math.ceil(lock_fraction * candidate_count)))
+        if candidate_count == 0 or eligible_count == 0 or budget == 0:
             continue
-        budget = min(eligible_count, int(math.ceil(lock_fraction * candidate_count)))
         scores = torch.where(
             eligible[batch_idx],
-            -drift[batch_idx],
+            drift[batch_idx] if prefer_high_drift else -drift[batch_idx],
             torch.full_like(drift[batch_idx], -torch.inf),
         )
         indices = torch.topk(scores, k=budget).indices

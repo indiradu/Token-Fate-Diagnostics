@@ -1,0 +1,31 @@
+{
+  "representation_policies": [
+    {
+      "label": "delayed_one_update",
+      "policy": "always",
+      "representation_layer": 8,
+      "representation_threshold": 0.0,
+      "representation_patience": 1,
+      "representation_min_age": 1,
+      "representation_lock_fraction": 1.0
+    },
+    {
+      "label": "immediate_same_step_stress",
+      "policy": "always",
+      "representation_layer": 8,
+      "representation_threshold": 0.0,
+      "representation_patience": 1,
+      "representation_min_age": 0,
+      "representation_lock_fraction": 1.0
+    },
+    {
+      "label": "capped_drift_l08_t050_p1_a1_f006",
+      "policy": "capped_drift",
+      "representation_layer": 8,
+      "representation_threshold": 0.05,
+      "representation_patience": 1,
+      "representation_min_age": 1,
+      "representation_lock_fraction": 0.06
+    }
+  ]
+}

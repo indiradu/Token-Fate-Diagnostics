@@ -1,0 +1,7 @@
+semantic_label,representation_label,representation_policy,representation_layer,representation_threshold,representation_patience,representation_min_age,representation_lock_fraction,examples,exact_sequence_match_rate,mean_token_agreement,answer_changed_rate,correctness_changed_rate,a1_correct_a2_incorrect_rate,a1_incorrect_a2_correct_rate,mean_reference_lock_count,mean_reference_token_forwards,mean_reference_opportunity_fraction,mean_runtime_gain,strict_safety_pass
+aggressive_c090_age4_s8,immediate_same_step_stress,always,8,0.0,1,0,1.0,25,1.0,1.0,0.0,0.0,0.0,0.0,76.8,3027.52,0.498466311619137,-0.1425720341956703,1
+aggressive_c090_age4_s8,delayed_one_update,always,8,0.0,1,1,1.0,25,1.0,1.0,0.0,0.0,0.0,0.0,75.8,2951.72,0.48361545509546,-0.14127427250373736,1
+aggressive_c090_age4_s8,capped_drift_l08_t050_p1_a1_f006,capped_drift,8,0.05,1,1,0.06,25,1.0,1.0,0.0,0.0,0.0,0.0,69.36,2618.92,0.43094132585804557,-0.14553196973705188,1
+safe_c095_s2,immediate_same_step_stress,always,8,0.0,1,0,1.0,25,1.0,1.0,0.0,0.0,0.0,0.0,76.8,3150.0,0.49422117690799305,-0.14345540717248279,1
+safe_c095_s2,delayed_one_update,always,8,0.0,1,1,1.0,25,1.0,1.0,0.0,0.0,0.0,0.0,75.8,3074.2,0.48003299313453984,-0.14288179861266725,1
+safe_c095_s2,capped_drift_l08_t050_p1_a1_f006,capped_drift,8,0.05,1,1,0.06,25,1.0,1.0,0.0,0.0,0.0,0.0,72.56,2889.68,0.451759894461506,-0.14437462973536952,1
