@@ -1,0 +1,222 @@
+[
+  {
+    "batch_id": 0.0,
+    "repeat": 0.0,
+    "a0_latency_s": 18.410450968076475,
+    "a2_latency_s": 16.307190595078282,
+    "a3_latency_s": 15.9101125090383,
+    "estimated_online_a3_latency_s": 16.633994549396448,
+    "controller_overhead_s": 0.7238820403581485,
+    "removed_row_token_forwards": 1928.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 0.0,
+    "repeat": 1.0,
+    "a0_latency_s": 18.417503491044044,
+    "a2_latency_s": 16.21722933195997,
+    "a3_latency_s": 15.916125830961391,
+    "estimated_online_a3_latency_s": 16.64000787131954,
+    "controller_overhead_s": 0.7238820403581485,
+    "removed_row_token_forwards": 1928.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 0.0,
+    "repeat": 2.0,
+    "a0_latency_s": 18.417152581969276,
+    "a2_latency_s": 16.22403351298999,
+    "a3_latency_s": 15.926632347051054,
+    "estimated_online_a3_latency_s": 16.650514387409203,
+    "controller_overhead_s": 0.7238820403581485,
+    "removed_row_token_forwards": 1928.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 0.0,
+    "repeat": 3.0,
+    "a0_latency_s": 18.40345718804747,
+    "a2_latency_s": 16.22371111996472,
+    "a3_latency_s": 15.916648796992376,
+    "estimated_online_a3_latency_s": 16.640530837350525,
+    "controller_overhead_s": 0.7238820403581485,
+    "removed_row_token_forwards": 1928.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 1.0,
+    "repeat": 0.0,
+    "a0_latency_s": 23.094351849053055,
+    "a2_latency_s": 21.016081872046925,
+    "a3_latency_s": 20.410256379982457,
+    "estimated_online_a3_latency_s": 21.047863502521068,
+    "controller_overhead_s": 0.6376071225386113,
+    "removed_row_token_forwards": 3998.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 1.0,
+    "repeat": 1.0,
+    "a0_latency_s": 23.098160373978317,
+    "a2_latency_s": 21.000950196990743,
+    "a3_latency_s": 20.395096906111576,
+    "estimated_online_a3_latency_s": 21.032704028650187,
+    "controller_overhead_s": 0.6376071225386113,
+    "removed_row_token_forwards": 3998.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 1.0,
+    "repeat": 2.0,
+    "a0_latency_s": 23.09555474901572,
+    "a2_latency_s": 21.015854489058256,
+    "a3_latency_s": 20.406507947016507,
+    "estimated_online_a3_latency_s": 21.04411506955512,
+    "controller_overhead_s": 0.6376071225386113,
+    "removed_row_token_forwards": 3998.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 1.0,
+    "repeat": 3.0,
+    "a0_latency_s": 23.1019841049565,
+    "a2_latency_s": 21.026804415043443,
+    "a3_latency_s": 20.385218960000202,
+    "estimated_online_a3_latency_s": 21.022826082538813,
+    "controller_overhead_s": 0.6376071225386113,
+    "removed_row_token_forwards": 3998.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 2.0,
+    "repeat": 0.0,
+    "a0_latency_s": 29.66166054608766,
+    "a2_latency_s": 27.036738732014783,
+    "a3_latency_s": 27.026689462014474,
+    "estimated_online_a3_latency_s": 27.726202133111656,
+    "controller_overhead_s": 0.6995126710971817,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 2.0,
+    "repeat": 1.0,
+    "a0_latency_s": 29.685549882939085,
+    "a2_latency_s": 27.036434934008867,
+    "a3_latency_s": 27.04697925003711,
+    "estimated_online_a3_latency_s": 27.746491921134293,
+    "controller_overhead_s": 0.6995126710971817,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 2.0,
+    "repeat": 2.0,
+    "a0_latency_s": 29.692358375992626,
+    "a2_latency_s": 27.068974505062215,
+    "a3_latency_s": 27.048605614923872,
+    "estimated_online_a3_latency_s": 27.748118286021054,
+    "controller_overhead_s": 0.6995126710971817,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 2.0,
+    "repeat": 3.0,
+    "a0_latency_s": 29.706791791017167,
+    "a2_latency_s": 27.066351392073557,
+    "a3_latency_s": 27.07268847594969,
+    "estimated_online_a3_latency_s": 27.77220114704687,
+    "controller_overhead_s": 0.6995126710971817,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 3.0,
+    "repeat": 0.0,
+    "a0_latency_s": 23.235543968970887,
+    "a2_latency_s": 23.542487793019973,
+    "a3_latency_s": 22.416415218031034,
+    "estimated_online_a3_latency_s": 23.141994482604787,
+    "controller_overhead_s": 0.7255792645737529,
+    "removed_row_token_forwards": 7401.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 3.0,
+    "repeat": 1.0,
+    "a0_latency_s": 23.23239843302872,
+    "a2_latency_s": 23.516579200979322,
+    "a3_latency_s": 22.378606378100812,
+    "estimated_online_a3_latency_s": 23.104185642674565,
+    "controller_overhead_s": 0.7255792645737529,
+    "removed_row_token_forwards": 7401.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 3.0,
+    "repeat": 2.0,
+    "a0_latency_s": 23.240571354981512,
+    "a2_latency_s": 23.484579710988328,
+    "a3_latency_s": 22.376178546925075,
+    "estimated_online_a3_latency_s": 23.10175781149883,
+    "controller_overhead_s": 0.7255792645737529,
+    "removed_row_token_forwards": 7401.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 3.0,
+    "repeat": 3.0,
+    "a0_latency_s": 23.223400244954973,
+    "a2_latency_s": 23.488699339912273,
+    "a3_latency_s": 22.360406500054523,
+    "estimated_online_a3_latency_s": 23.085985764628276,
+    "controller_overhead_s": 0.7255792645737529,
+    "removed_row_token_forwards": 7401.0,
+    "compute_switched": 1.0
+  },
+  {
+    "batch_id": 4.0,
+    "repeat": 0.0,
+    "a0_latency_s": 31.61050841002725,
+    "a2_latency_s": 26.203358017955907,
+    "a3_latency_s": 26.212475689011626,
+    "estimated_online_a3_latency_s": 26.83738294977229,
+    "controller_overhead_s": 0.6249072607606649,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 4.0,
+    "repeat": 1.0,
+    "a0_latency_s": 31.628057525027543,
+    "a2_latency_s": 26.219595483969897,
+    "a3_latency_s": 26.219046704936773,
+    "estimated_online_a3_latency_s": 26.843953965697438,
+    "controller_overhead_s": 0.6249072607606649,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 4.0,
+    "repeat": 2.0,
+    "a0_latency_s": 31.63093792006839,
+    "a2_latency_s": 26.222225170000456,
+    "a3_latency_s": 26.231410560081713,
+    "estimated_online_a3_latency_s": 26.856317820842378,
+    "controller_overhead_s": 0.6249072607606649,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  },
+  {
+    "batch_id": 4.0,
+    "repeat": 3.0,
+    "a0_latency_s": 31.616988734924234,
+    "a2_latency_s": 26.219589013024233,
+    "a3_latency_s": 26.21475400798954,
+    "estimated_online_a3_latency_s": 26.839661268750206,
+    "controller_overhead_s": 0.6249072607606649,
+    "removed_row_token_forwards": 0.0,
+    "compute_switched": 0.0
+  }
+]

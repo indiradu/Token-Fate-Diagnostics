@@ -1,0 +1,19 @@
+{
+  "stage": "development_only",
+  "description": "Predeclared H2 causal ablations; select only after matched online evaluation, never from old replay timing.",
+  "methods": {
+    "dense": {"kind": "dense"},
+    "surelock": {"kind": "surelock"},
+    "tracelock": {"kind": "tracelock"},
+    "h2": {"kind": "hybrid"},
+    "h2_live": {"kind": "hybrid", "speed_reference_policy": "live"},
+    "h2_generated_only": {"kind": "hybrid", "speed_reference_policy": "generated_only"},
+    "h2_delay1": {"kind": "hybrid", "speed_reference_policy": "delay", "representation_min_age": 1},
+    "h2_delay2": {"kind": "hybrid", "speed_reference_policy": "delay", "representation_min_age": 2},
+    "h2_drift01_p1": {"kind": "hybrid", "speed_reference_policy": "drift", "drift_threshold": 0.01, "representation_patience": 1, "representation_min_age": 2},
+    "h2_refresh16": {"kind": "hybrid", "speed_reference_policy": "delay", "representation_min_age": 1, "refresh_interval": 16},
+    "h2_guard90": {"kind": "hybrid", "semantic_min_confidence": 0.9},
+    "h2_cap10": {"kind": "hybrid", "semantic_cap_fraction": 0.1},
+    "h2_guard90_delay1": {"kind": "hybrid", "semantic_min_confidence": 0.9, "speed_reference_policy": "delay", "representation_min_age": 1}
+  }
+}

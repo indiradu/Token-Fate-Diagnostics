@@ -1,0 +1,209 @@
+{
+  "policy_config": "configs/phaselock_h2_controller_screen_v1.json",
+  "methods": "",
+  "dataset": "gsm8k",
+  "example_indices": "800:807",
+  "output_dir": "/home/indira.duisembayeva/projects/regret_remasking/results/h2_controller_screen_20260927_r2/dev_gsm8k",
+  "checkpoint": "/home/indira.duisembayeva/projects/regret_remasking/results/tracelock_llada_8000_paper_mix_controller_20260914/best_f0_5.pt",
+  "projection": "/home/indira.duisembayeva/projects/regret_remasking/results/tracelock_llada_8000_paper_mix_traces_20260914/projection.npy",
+  "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+  "batch_size": 4,
+  "gen_length": 128,
+  "steps": 128,
+  "block_length": 32,
+  "timing_warmups": 1,
+  "timing_repeats": 3,
+  "seed": 271,
+  "policies": {
+    "dense": {
+      "kind": "dense"
+    },
+    "surelock": {
+      "kind": "surelock"
+    },
+    "tracelock": {
+      "kind": "tracelock"
+    },
+    "h2": {
+      "kind": "hybrid"
+    },
+    "h2_live": {
+      "kind": "hybrid",
+      "speed_reference_policy": "live"
+    },
+    "h2_generated_only": {
+      "kind": "hybrid",
+      "speed_reference_policy": "generated_only"
+    },
+    "h2_delay1": {
+      "kind": "hybrid",
+      "speed_reference_policy": "delay",
+      "representation_min_age": 1
+    },
+    "h2_delay2": {
+      "kind": "hybrid",
+      "speed_reference_policy": "delay",
+      "representation_min_age": 2
+    },
+    "h2_drift01_p1": {
+      "kind": "hybrid",
+      "speed_reference_policy": "drift",
+      "drift_threshold": 0.01,
+      "representation_patience": 1,
+      "representation_min_age": 2
+    },
+    "h2_refresh16": {
+      "kind": "hybrid",
+      "speed_reference_policy": "delay",
+      "representation_min_age": 1,
+      "refresh_interval": 16
+    },
+    "h2_guard90": {
+      "kind": "hybrid",
+      "semantic_min_confidence": 0.9
+    },
+    "h2_cap10": {
+      "kind": "hybrid",
+      "semantic_cap_fraction": 0.1
+    },
+    "h2_guard90_delay1": {
+      "kind": "hybrid",
+      "semantic_min_confidence": 0.9,
+      "speed_reference_policy": "delay",
+      "representation_min_age": 1
+    }
+  },
+  "stage": "development_only",
+  "time_metric": "synchronized caller wall time including tokenization, live controller, execution, cleanup and decoding; excludes scoring/model load",
+  "baseline_labels": {
+    "surelock": "paper-spec transfer reimplementation",
+    "tracelock": "LLaDA transfer adaptation; not official checkpoint"
+  },
+  "schedule_difference": "TraceLock uses sliding soft-crop width; others use fixed blocks of the same width. This is an intrinsic method difference, not an identical token-transfer trajectory.",
+  "scoring": "MATH500 Math-Verify 0.9.0 symbolic equivalence; GSM8K and HumanEval unchanged repository graders",
+  "source_sha256": {
+    "scripts/benchmark_phaselock_online_screen.py": "a44fa530abd69a2367a3230491fd03bc3278e1d14a6b4f6b68f632048e4d6eed",
+    "configs/phaselock_h2_controller_screen_v1.json": "da0863b81b2c8b261b5fc4a8914d52e98e6527c0b7b8d91b28775e3aafe81e7c",
+    "scripts/benchmark_phaselock_sure_hybrid.py": "7c9a6d28570133df8759ebd0d839e6f700ceea82d63752b268bad0fceddfb469",
+    "scripts/benchmark_surelock_vs_phaselock.py": "b3b20520dd677626c2f045d336a986245e43c6c766fd3b6c30693fb26f7320e7",
+    "scripts/benchmark_tracelock_vs_phaselock.py": "e1c6e5f60723507ab9a958214fcf4e059d85584417c055da273608d1656d08c8",
+    "src/regret_remasking/.___init__.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._commitment_safety.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._data.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._efficiency.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._features.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._llada_trace.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._paper_baselines.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._phase_lock.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._phase_lock_influence.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._phase_lock_semantic.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._phase_lock_sparse.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._pilot.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._regret_model.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._token_fate.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/._tracelock_baseline.py": "87f5ff9c8fe257ff72799f36816278a18982fee6a89308bd44642d8b1f451ba8",
+    "src/regret_remasking/__init__.py": "a8997480606626343064eeac8b5f8e89ddc0a000eff54cf6a1518c715671e368",
+    "src/regret_remasking/commitment_safety.py": "94420e3015add7d01c24b2912e2fd66daf162ca0f431f84f84ee975b53ce6628",
+    "src/regret_remasking/data.py": "ffd32ef7aca3d7b2b71250229fe303c8ad29a20b3dd8e86af207e414a5e70ca1",
+    "src/regret_remasking/efficiency.py": "a40256b2cfb4af0d7b4893bfd3289b1732eaaef737153f538d6470ba20e4cca5",
+    "src/regret_remasking/features.py": "1da0e5d5c98e2141809f825fa763764b28207da33c3e3f6ba67d466963109a1e",
+    "src/regret_remasking/llada_trace.py": "71d21338d441b28bfd21d3639ffbbb278607324178cefe673e529e1224cd9ec5",
+    "src/regret_remasking/paper_baselines.py": "cbc7da261d7d355948159aa742378b4de34cdd0d2ea06ececaaccf9f2ebc2d8e",
+    "src/regret_remasking/phase_lock.py": "1068b3066a79cb325d8826cde80b66989f9a77d0381f9a24d1738a0719735e64",
+    "src/regret_remasking/phase_lock_influence.py": "3fbd750cfe69fc25d752047f4d65975336f9f62c8a8dd6a7c6be391ac2beb2bb",
+    "src/regret_remasking/phase_lock_semantic.py": "5fa364c0b3f39b2ac8ec68cf3592e7f521a1ed3c94950789126f60c41212ce82",
+    "src/regret_remasking/phase_lock_sparse.py": "2f0d2bc781d2f1098b5528ec9c23b43700125f15a9d4323165d8d4b3b1399fa6",
+    "src/regret_remasking/pilot.py": "ae4ce6a9e42998ea9c2520d91bea819ace1005cf98895d157c68e12f3719d531",
+    "src/regret_remasking/regret_model.py": "cd935513a4ace2a8ad9362cada3f8cc395306c42c274e2315bf1739da1c0d9b9",
+    "src/regret_remasking/token_fate.py": "73d8e32cc428b306f4ea3cd09f9fed995150554c456b8eda7235c6e841e64bf6",
+    "src/regret_remasking/tracelock_baseline.py": "abd555e14c2a2b2e0562ef0caee8fc0df883760b3a8fee105fc0a9d86d744ae2"
+  },
+  "checkpoint_sha256": "a738565135d5adb37cb768a8b3eaf9867d2ca64df41dbb52f95fc6a421ae0442",
+  "projection_sha256": "88b8521cc57c2e23c79ebf103b771193d768d21ff3f4b415c2c6afb5022ce238",
+  "examples": [
+    {
+      "id": "gsm8k-test-800",
+      "prompt_sha256": "7ed8972a7079a1e0e3198b3f3310d629fc90f0197ec81860fef11ff3a7c182ca"
+    },
+    {
+      "id": "gsm8k-test-801",
+      "prompt_sha256": "90bebab7271331ad89a63da9fbb7ad9234da0d93f6ec066bedf85efd39378202"
+    },
+    {
+      "id": "gsm8k-test-802",
+      "prompt_sha256": "3f602e153fb6ffd1dc1110826a6705c69aa18bb538639fc7fdba3cc4be29fb8b"
+    },
+    {
+      "id": "gsm8k-test-803",
+      "prompt_sha256": "45c4e6916b14b4b1bd659b34750c6dfb22d06d4f9561cc9856114a115e593077"
+    },
+    {
+      "id": "gsm8k-test-804",
+      "prompt_sha256": "3b389624b998ff6f2206d950115efaa4e7ef2e94fe2e6b86868ea15daa05a0ee"
+    },
+    {
+      "id": "gsm8k-test-805",
+      "prompt_sha256": "e2a33789d00cf981693956f6052ec94169aaae02a84da9d357b6160a171b0ec4"
+    },
+    {
+      "id": "gsm8k-test-806",
+      "prompt_sha256": "2e94080aa1a2e78866a337316dbaa6bde70f66e80236140d32bcf47bf9300d5d"
+    },
+    {
+      "id": "gsm8k-test-807",
+      "prompt_sha256": "945b8a887303e703344c07570273b61f6e3976d72c04af317ff26108c76d10bd"
+    }
+  ],
+  "gpu": "NVIDIA RTX 5000 Ada Generation",
+  "cuda": "12.1",
+  "initial_gpu_free_bytes": 33258995712,
+  "gpu_total_bytes": 33781252096,
+  "torch": "2.5.1+cu121",
+  "transformers": "4.57.6",
+  "python": "3.11.15",
+  "slurm_job_id": "209406",
+  "host": "ws-l1-005",
+  "platform": "Linux-6.12.95-ql-generic-14-12-x86_64-with-glibc2.39",
+  "model_config_commit": "08b83a6feb34df1a6011b80c3c00c7563e963b07",
+  "tokenizer_config": {
+    "add_bos_token": false,
+    "add_eos_token": false,
+    "additional_special_tokens": [
+      "<role>",
+      "</role>",
+      "<|arithmetic_start|>",
+      "<|arithmetic_end|>",
+      "<|number_start|>",
+      "<|number_end|>"
+    ],
+    "bos_token": "<|startoftext|>",
+    "chat_template": "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}",
+    "clean_up_tokenization_spaces": false,
+    "cls_token": "[CLS]",
+    "eos_token": "<|endoftext|>",
+    "fast_tokenizer": true,
+    "gmask_token": "[gMASK]",
+    "merges_file": null,
+    "model_input_names": [
+      "input_ids",
+      "attention_mask"
+    ],
+    "model_max_length": 1000000000000000019884624838656,
+    "pad_token": "<|endoftext|>",
+    "trust_remote_code": true,
+    "vocab_file": null,
+    "name_or_path": "GSAI-ML/LLaDA-8B-Instruct"
+  },
+  "git_head": "",
+  "grading_provenance": {
+    "source_run": "/home/indira.duisembayeva/projects/regret_remasking/results/h2_controller_screen_20260927_r2/dev_gsm8k",
+    "script_sha256": "1ff5d9eb2fb1288c52f2dc99dc4ca8d038531c7cf152bd03db8660544b609629",
+    "source_records_sha256": "aad2d08c3ed663c92134b80f22e80867c775c89c849576119b2a181d918d6e0f",
+    "packages": {
+      "math-verify": "0.9.0",
+      "latex2sympy2_extended": "1.11.0",
+      "antlr4-python3-runtime": "4.13.2",
+      "sympy": "1.13.1"
+    }
+  }
+}

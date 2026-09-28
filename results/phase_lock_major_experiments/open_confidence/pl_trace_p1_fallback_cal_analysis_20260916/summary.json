@@ -1,0 +1,74 @@
+{
+  "selection_rule": "zero A0->A1 correctness regressions; exact, zero-regression A1->A2 and A2->A3; maximize pooled estimated online gain; within 1pp choose the earlier policy in the preregistered conservative order",
+  "selected_policy": "open_confidence",
+  "policies": [
+    {
+      "policy": "open_confidence",
+      "datasets": [
+        "gsm8k",
+        "humaneval",
+        "math500"
+      ],
+      "examples": 24,
+      "timing_pairs": 6,
+      "eligible": true,
+      "accuracy": {
+        "a0": 0.375,
+        "a1": 0.375,
+        "a2": 0.375,
+        "a3": 0.375
+      },
+      "a0_to_a1": {
+        "exact_rate": 0.6666666666666666,
+        "answer_change_rate": 0.16666666666666666,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "a1_to_a2": {
+        "exact_rate": 1.0,
+        "answer_change_rate": 0.0,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "a2_to_a3": {
+        "exact_rate": 1.0,
+        "answer_change_rate": 0.0,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "mean_nfe": {
+        "a0": 128.0,
+        "a1": 92.16666666666667,
+        "a2": 92.16666666666667,
+        "a3": 92.16666666666667
+      },
+      "executor_gain_a3_vs_a0": {
+        "mean": 0.27645798713570374,
+        "ci95": [
+          0.16828481832664854,
+          0.37925692684057183
+        ],
+        "pairs": 6
+      },
+      "estimated_online_gain_a3_vs_a0": {
+        "mean": 0.25381070641791076,
+        "ci95": [
+          0.14163064838542153,
+          0.3614484154787359
+        ],
+        "pairs": 6
+      },
+      "compute_gain_a3_vs_a2": {
+        "mean": 0.01206111392056299,
+        "ci95": [
+          0.0016721221933712616,
+          0.03003565836481768
+        ],
+        "pairs": 6
+      },
+      "mean_controller_overhead_s": 0.523658185712217,
+      "mean_removed_row_token_forwards": 1189.3333333333333,
+      "compute_switch_rate": 0.3333333333333333
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "examples": 60,
+  "batches": 15,
+  "datasets": {
+    "gsm8k": {
+      "dataset": "gsm8k",
+      "examples": 20,
+      "thresholds": {
+        "dense": 1.000001,
+        "capped_confidence": 0.95,
+        "confidence": 0.4753608703613281,
+        "trace": 0.53515625,
+        "safety_cheap": 0.7486674945556252,
+        "safety_full": 0.7332000822274728
+      },
+      "methods": {
+        "dense": {
+          "accuracy": 0.6,
+          "exact_dense_rate": 1.0,
+          "answer_change_rate": 0.0,
+          "mean_nfe": 128.0,
+          "mean_extra_commits": 0.0,
+          "runtime_gain_vs_dense": 0.0
+        },
+        "capped_confidence": {
+          "accuracy": 0.6,
+          "exact_dense_rate": 1.0,
+          "answer_change_rate": 0.0,
+          "mean_nfe": 126.0,
+          "mean_extra_commits": 18.6,
+          "runtime_gain_vs_dense": 0.012601476299992087
+        },
+        "safety_full": {
+          "accuracy": 0.6,
+          "exact_dense_rate": 0.1,
+          "answer_change_rate": 0.2,
+          "mean_nfe": 51.6,
+          "mean_extra_commits": 321.4,
+          "runtime_gain_vs_dense": 0.5462211728247178
+        }
+      }
+    },
+    "math500": {
+      "dataset": "math500",
+      "examples": 20,
+      "thresholds": {
+        "dense": 1.000001,
+        "capped_confidence": 0.95,
+        "confidence": 0.4753608703613281,
+        "trace": 0.53515625,
+        "safety_cheap": 0.7486674945556252,
+        "safety_full": 0.7332000822274728
+      },
+      "methods": {
+        "dense": {
+          "accuracy": 0.45,
+          "exact_dense_rate": 1.0,
+          "answer_change_rate": 0.0,
+          "mean_nfe": 128.0,
+          "mean_extra_commits": 0.0,
+          "runtime_gain_vs_dense": 0.0
+        },
+        "capped_confidence": {
+          "accuracy": 0.45,
+          "exact_dense_rate": 1.0,
+          "answer_change_rate": 0.0,
+          "mean_nfe": 126.8,
+          "mean_extra_commits": 14.2,
+          "runtime_gain_vs_dense": 0.0066028614574438205
+        },
+        "safety_full": {
+          "accuracy": 0.45,
+          "exact_dense_rate": 0.2,
+          "answer_change_rate": 0.3,
+          "mean_nfe": 61.2,
+          "mean_extra_commits": 299.8,
+          "runtime_gain_vs_dense": 0.4631669679431256
+        }
+      }
+    },
+    "humaneval": {
+      "dataset": "humaneval",
+      "examples": 20,
+      "thresholds": {
+        "dense": 1.000001,
+        "capped_confidence": 0.95,
+        "confidence": 0.4753608703613281,
+        "trace": 0.53515625,
+        "safety_cheap": 0.7486674945556252,
+        "safety_full": 0.7332000822274728
+      },
+      "methods": {
+        "dense": {
+          "accuracy": 0.05,
+          "exact_dense_rate": 1.0,
+          "answer_change_rate": 0.0,
+          "mean_nfe": 128.0,
+          "mean_extra_commits": 0.0,
+          "runtime_gain_vs_dense": 0.0
+        },
+        "capped_confidence": {
+          "accuracy": 0.05,
+          "exact_dense_rate": 0.95,
+          "answer_change_rate": 0.05,
+          "mean_nfe": 125.4,
+          "mean_extra_commits": 22.8,
+          "runtime_gain_vs_dense": 0.018467744863345237
+        },
+        "safety_full": {
+          "accuracy": 0.05,
+          "exact_dense_rate": 0.15,
+          "answer_change_rate": 0.85,
+          "mean_nfe": 52.2,
+          "mean_extra_commits": 322.2,
+          "runtime_gain_vs_dense": 0.546517909469979
+        }
+      }
+    }
+  },
+  "methods": {
+    "dense": {
+      "accuracy": 0.36666666666666664,
+      "exact_dense_rate": 1.0,
+      "answer_change_rate": 0.0,
+      "regressions_vs_dense": 0,
+      "improvements_vs_dense": 0,
+      "mean_nfe": 128.0,
+      "runtime_gain_vs_dense": 0.0,
+      "runtime_gain_vs_dense_ci95": [
+        0.0,
+        0.0
+      ],
+      "mean_controller_latency_s_per_batch": 0.0
+    },
+    "capped_confidence": {
+      "accuracy": 0.36666666666666664,
+      "exact_dense_rate": 0.9833333333333333,
+      "answer_change_rate": 0.016666666666666666,
+      "regressions_vs_dense": 0,
+      "improvements_vs_dense": 0,
+      "mean_nfe": 126.06666666666666,
+      "runtime_gain_vs_dense": 0.013579458243594522,
+      "runtime_gain_vs_dense_ci95": [
+        0.008745278249174326,
+        0.018234808321794603
+      ],
+      "mean_controller_latency_s_per_batch": 0.07672507700820765
+    },
+    "safety_full": {
+      "accuracy": 0.36666666666666664,
+      "exact_dense_rate": 0.15,
+      "answer_change_rate": 0.45,
+      "regressions_vs_dense": 1,
+      "improvements_vs_dense": 1,
+      "mean_nfe": 55.0,
+      "runtime_gain_vs_dense": 0.5221939854899356,
+      "runtime_gain_vs_dense_ci95": [
+        0.497299773341349,
+        0.5438080012486741
+      ],
+      "mean_controller_latency_s_per_batch": 1.3653991089668125
+    }
+  }
+}

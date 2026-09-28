@@ -20,6 +20,9 @@ and can contain complete model generations.
 | `token_fate_layerwise_wide_30_r2/probes/` | aggregate layerwise probe metrics and fate summaries | Hidden-state probe comparison. |
 | `representation_lock_v2/` | matched-drift development and untouched confirmation summaries | Fixed-plan PhaseLock representation-policy selection. |
 | `phase_lock_compute_v1/` | raw paired A2/A3 timings, run configs, integrity checks, and bootstrap summaries | Packed-row output safety and wall-clock profitability. |
+| `phase_lock_major_experiments/open_confidence/` | 60-example plans, outputs, timings and aggregate analysis | Trace-assisted open-confidence PhaseLock result. |
+| `phase_lock_major_experiments/capped_confidence_and_direct_safety/` | 60-example outputs, timings, plans and aggregate analysis | Conservative capped-confidence control and direct-safety speed/quality diagnostic. |
+| `phase_lock_major_experiments/h2_guard90_delay1/` | 24-example live online records, symbolic MATH500 grading and aggregate analysis | Development comparison of H2 confidence/delay variants against SureLock and TraceLock. |
 
 Every strict-intervention directory includes its aggregate group summary and
 paired bootstrap comparisons where applicable.
@@ -30,3 +33,4 @@ For definitions, split rules, and interpretation, read:
 - `../docs/causal_robustness_results.md`
 - `../docs/representation_lock_v2_results.md`
 - `../docs/compute_lock_v1_results.md`
+- `../docs/phase_lock_major_experiments.md`

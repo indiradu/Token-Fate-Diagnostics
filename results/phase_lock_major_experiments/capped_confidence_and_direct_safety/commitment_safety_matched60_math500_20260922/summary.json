@@ -1,0 +1,38 @@
+{
+  "dataset": "math500",
+  "examples": 20,
+  "thresholds": {
+    "dense": 1.000001,
+    "capped_confidence": 0.95,
+    "confidence": 0.4753608703613281,
+    "trace": 0.53515625,
+    "safety_cheap": 0.7486674945556252,
+    "safety_full": 0.7332000822274728
+  },
+  "methods": {
+    "dense": {
+      "accuracy": 0.45,
+      "exact_dense_rate": 1.0,
+      "answer_change_rate": 0.0,
+      "mean_nfe": 128.0,
+      "mean_extra_commits": 0.0,
+      "runtime_gain_vs_dense": 0.0
+    },
+    "capped_confidence": {
+      "accuracy": 0.45,
+      "exact_dense_rate": 1.0,
+      "answer_change_rate": 0.0,
+      "mean_nfe": 126.8,
+      "mean_extra_commits": 14.2,
+      "runtime_gain_vs_dense": 0.0066028614574438205
+    },
+    "safety_full": {
+      "accuracy": 0.45,
+      "exact_dense_rate": 0.2,
+      "answer_change_rate": 0.3,
+      "mean_nfe": 61.2,
+      "mean_extra_commits": 299.8,
+      "runtime_gain_vs_dense": 0.4631669679431256
+    }
+  }
+}

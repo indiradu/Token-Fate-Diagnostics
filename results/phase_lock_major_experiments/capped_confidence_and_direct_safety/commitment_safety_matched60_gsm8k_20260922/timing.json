@@ -1,0 +1,222 @@
+[
+  {
+    "batch_id": 0,
+    "repeat": 0,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 22.484973753103986,
+    "capped_confidence_latency_s": 22.22170656081289,
+    "safety_full_latency_s": 10.052514198003337,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07588533731177449,
+    "safety_full_controller_latency_s": 1.039919642265886
+  },
+  {
+    "batch_id": 0,
+    "repeat": 1,
+    "execution_order": "capped_confidence_then_safety_full_then_dense",
+    "dense_latency_s": 22.521179863018915,
+    "capped_confidence_latency_s": 22.232270546955988,
+    "safety_full_latency_s": 10.053513047052547,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07583936490118504,
+    "safety_full_controller_latency_s": 1.0382691023405641
+  },
+  {
+    "batch_id": 0,
+    "repeat": 2,
+    "execution_order": "safety_full_then_dense_then_capped_confidence",
+    "dense_latency_s": 22.517098269192502,
+    "capped_confidence_latency_s": 22.231063133105636,
+    "safety_full_latency_s": 10.056649108882993,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07535645156167448,
+    "safety_full_controller_latency_s": 1.0396773915272206
+  },
+  {
+    "batch_id": 0,
+    "repeat": 3,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 22.511435447027907,
+    "capped_confidence_latency_s": 22.227479059016332,
+    "safety_full_latency_s": 10.053000329062343,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07554339431226254,
+    "safety_full_controller_latency_s": 1.0395615373272449
+  },
+  {
+    "batch_id": 1,
+    "repeat": 0,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 19.670389842940494,
+    "capped_confidence_latency_s": 19.591452572029084,
+    "safety_full_latency_s": 8.797302681952715,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07739861868321896,
+    "safety_full_controller_latency_s": 0.9927423386834562
+  },
+  {
+    "batch_id": 1,
+    "repeat": 1,
+    "execution_order": "capped_confidence_then_safety_full_then_dense",
+    "dense_latency_s": 19.664442074019462,
+    "capped_confidence_latency_s": 19.583572886884212,
+    "safety_full_latency_s": 8.79810777399689,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07754676486365497,
+    "safety_full_controller_latency_s": 0.9935525488108397
+  },
+  {
+    "batch_id": 1,
+    "repeat": 2,
+    "execution_order": "safety_full_then_dense_then_capped_confidence",
+    "dense_latency_s": 19.661700321827084,
+    "capped_confidence_latency_s": 19.582110468065366,
+    "safety_full_latency_s": 8.796461220132187,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07741107163019478,
+    "safety_full_controller_latency_s": 0.9928430377040058
+  },
+  {
+    "batch_id": 1,
+    "repeat": 3,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 19.663791798986495,
+    "capped_confidence_latency_s": 19.58427764987573,
+    "safety_full_latency_s": 8.80042133317329,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07688996172510087,
+    "safety_full_controller_latency_s": 0.9931848612613976
+  },
+  {
+    "batch_id": 2,
+    "repeat": 0,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 19.68031374993734,
+    "capped_confidence_latency_s": 19.60187617712654,
+    "safety_full_latency_s": 9.154840159928426,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07660288852639496,
+    "safety_full_controller_latency_s": 1.035409057047218
+  },
+  {
+    "batch_id": 2,
+    "repeat": 1,
+    "execution_order": "capped_confidence_then_safety_full_then_dense",
+    "dense_latency_s": 19.698095991974697,
+    "capped_confidence_latency_s": 19.599021706962958,
+    "safety_full_latency_s": 9.156905775191262,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07626779028214514,
+    "safety_full_controller_latency_s": 1.036541539710015
+  },
+  {
+    "batch_id": 2,
+    "repeat": 2,
+    "execution_order": "safety_full_then_dense_then_capped_confidence",
+    "dense_latency_s": 19.70319586689584,
+    "capped_confidence_latency_s": 19.620386763941497,
+    "safety_full_latency_s": 9.162330820923671,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.0765774822793901,
+    "safety_full_controller_latency_s": 1.0365992658771574
+  },
+  {
+    "batch_id": 2,
+    "repeat": 3,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 19.708183342125267,
+    "capped_confidence_latency_s": 19.623173321131617,
+    "safety_full_latency_s": 9.173887084936723,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.0767547432333231,
+    "safety_full_controller_latency_s": 1.0373046197928488
+  },
+  {
+    "batch_id": 3,
+    "repeat": 0,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 18.832514595007524,
+    "capped_confidence_latency_s": 18.466309036826715,
+    "safety_full_latency_s": 7.967767719877884,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07642745645716786,
+    "safety_full_controller_latency_s": 0.9123281000647694
+  },
+  {
+    "batch_id": 3,
+    "repeat": 1,
+    "execution_order": "capped_confidence_then_safety_full_then_dense",
+    "dense_latency_s": 18.83280880888924,
+    "capped_confidence_latency_s": 18.46752097690478,
+    "safety_full_latency_s": 7.959283625008538,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07662879675626755,
+    "safety_full_controller_latency_s": 0.9109794779215008
+  },
+  {
+    "batch_id": 3,
+    "repeat": 2,
+    "execution_order": "safety_full_then_dense_then_capped_confidence",
+    "dense_latency_s": 18.82708788686432,
+    "capped_confidence_latency_s": 18.463516981108114,
+    "safety_full_latency_s": 7.955657427897677,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.0766971055418253,
+    "safety_full_controller_latency_s": 0.9107116046361625
+  },
+  {
+    "batch_id": 3,
+    "repeat": 3,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 18.835671993903816,
+    "capped_confidence_latency_s": 18.45962248998694,
+    "safety_full_latency_s": 7.959509603912011,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07664546091109514,
+    "safety_full_controller_latency_s": 0.9117164621129632
+  },
+  {
+    "batch_id": 4,
+    "repeat": 0,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 24.27463034307584,
+    "capped_confidence_latency_s": 23.782561883097515,
+    "safety_full_latency_s": 11.670659868977964,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07565365545451641,
+    "safety_full_controller_latency_s": 1.2303268213290721
+  },
+  {
+    "batch_id": 4,
+    "repeat": 1,
+    "execution_order": "capped_confidence_then_safety_full_then_dense",
+    "dense_latency_s": 24.26248750393279,
+    "capped_confidence_latency_s": 23.773367140209302,
+    "safety_full_latency_s": 11.667345929890871,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07643240271136165,
+    "safety_full_controller_latency_s": 1.2306000450626016
+  },
+  {
+    "batch_id": 4,
+    "repeat": 2,
+    "execution_order": "safety_full_then_dense_then_capped_confidence",
+    "dense_latency_s": 24.274127043085173,
+    "capped_confidence_latency_s": 23.76728067989461,
+    "safety_full_latency_s": 11.670371162006631,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07559374696575105,
+    "safety_full_controller_latency_s": 1.2304030878003687
+  },
+  {
+    "batch_id": 4,
+    "repeat": 3,
+    "execution_order": "dense_then_capped_confidence_then_safety_full",
+    "dense_latency_s": 24.267488564830273,
+    "capped_confidence_latency_s": 23.764012585859746,
+    "safety_full_latency_s": 11.667031283956021,
+    "dense_controller_latency_s": 0.0,
+    "capped_confidence_controller_latency_s": 0.07519986550323665,
+    "safety_full_controller_latency_s": 1.2288352553732693
+  }
+]

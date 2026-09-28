@@ -1,0 +1,38 @@
+{
+  "dataset": "gsm8k",
+  "examples": 20,
+  "thresholds": {
+    "dense": 1.000001,
+    "capped_confidence": 0.95,
+    "confidence": 0.4753608703613281,
+    "trace": 0.53515625,
+    "safety_cheap": 0.7486674945556252,
+    "safety_full": 0.7332000822274728
+  },
+  "methods": {
+    "dense": {
+      "accuracy": 0.6,
+      "exact_dense_rate": 1.0,
+      "answer_change_rate": 0.0,
+      "mean_nfe": 128.0,
+      "mean_extra_commits": 0.0,
+      "runtime_gain_vs_dense": 0.0
+    },
+    "capped_confidence": {
+      "accuracy": 0.6,
+      "exact_dense_rate": 1.0,
+      "answer_change_rate": 0.0,
+      "mean_nfe": 126.0,
+      "mean_extra_commits": 18.6,
+      "runtime_gain_vs_dense": 0.012601476299992087
+    },
+    "safety_full": {
+      "accuracy": 0.6,
+      "exact_dense_rate": 0.1,
+      "answer_change_rate": 0.2,
+      "mean_nfe": 51.6,
+      "mean_extra_commits": 321.4,
+      "runtime_gain_vs_dense": 0.5462211728247178
+    }
+  }
+}

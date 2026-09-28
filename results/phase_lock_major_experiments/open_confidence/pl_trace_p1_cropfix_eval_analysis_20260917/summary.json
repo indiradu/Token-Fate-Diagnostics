@@ -1,0 +1,74 @@
+{
+  "selection_rule": "zero A0->A1 correctness regressions; exact, zero-regression A1->A2 and A2->A3; maximize pooled estimated online gain; within 1pp choose the earlier policy in the preregistered conservative order",
+  "selected_policy": "open_confidence",
+  "policies": [
+    {
+      "policy": "open_confidence",
+      "datasets": [
+        "gsm8k",
+        "humaneval",
+        "math500"
+      ],
+      "examples": 60,
+      "timing_pairs": 15,
+      "eligible": true,
+      "accuracy": {
+        "a0": 0.36666666666666664,
+        "a1": 0.36666666666666664,
+        "a2": 0.36666666666666664,
+        "a3": 0.36666666666666664
+      },
+      "a0_to_a1": {
+        "exact_rate": 0.8666666666666667,
+        "answer_change_rate": 0.08333333333333333,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "a1_to_a2": {
+        "exact_rate": 1.0,
+        "answer_change_rate": 0.0,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "a2_to_a3": {
+        "exact_rate": 1.0,
+        "answer_change_rate": 0.0,
+        "regressions": 0,
+        "improvements": 0
+      },
+      "mean_nfe": {
+        "a0": 128.0,
+        "a1": 100.73333333333333,
+        "a2": 100.73333333333333,
+        "a3": 100.73333333333333
+      },
+      "executor_gain_a3_vs_a0": {
+        "mean": 0.21589939162917934,
+        "ci95": [
+          0.163259140067545,
+          0.27134295166114686
+        ],
+        "pairs": 15
+      },
+      "estimated_online_gain_a3_vs_a0": {
+        "mean": 0.19242810875913802,
+        "ci95": [
+          0.13791566908072952,
+          0.24757057902432647
+        ],
+        "pairs": 15
+      },
+      "compute_gain_a3_vs_a2": {
+        "mean": 0.013557592089038891,
+        "ci95": [
+          0.0043485401819021025,
+          0.024437616366883172
+        ],
+        "pairs": 15
+      },
+      "mean_controller_overhead_s": 0.6345126351807266,
+      "mean_removed_row_token_forwards": 1994.3333333333333,
+      "compute_switch_rate": 0.4
+    }
+  ]
+}

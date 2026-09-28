@@ -1,0 +1,58 @@
+{
+  "model_name": "GSAI-ML/LLaDA-8B-Instruct",
+  "dataset": "math500",
+  "split": "test",
+  "example_indices": "450:469",
+  "checkpoint": "/home/indira.duisembayeva/projects/regret_remasking/results/tracelock_llada_8000_paper_mix_controller_20260914/best_f0_5.pt",
+  "projection": "/home/indira.duisembayeva/projects/regret_remasking/results/tracelock_llada_8000_paper_mix_traces_20260914/projection.npy",
+  "trace_layers": "30,31,32",
+  "window_width": 32,
+  "policy": "open_confidence",
+  "latency_table": "/home/indira.duisembayeva/projects/regret_remasking/results/phase_lock_exact_latency_calibration_long_v2_20260913/latency_table.json",
+  "output_dir": "results/pl_trace_p1_cropfix_eval_open_confidence_math500_20260917",
+  "batch_size": 4,
+  "steps": 128,
+  "gen_length": 128,
+  "block_length": 32,
+  "timing_warmups": 1,
+  "timing_repeats": 4,
+  "bootstrap_samples": 10000,
+  "dtype": "bf16",
+  "device": "cuda",
+  "seed": 251,
+  "compute_min_locked_fraction": 0.2,
+  "compute_min_remaining_steps": 8,
+  "compute_min_projected_saved_rows": 1500,
+  "compute_min_expected_gain": 0.03,
+  "semantic_policy": {
+    "probability_threshold": 0.95,
+    "confidence_threshold": 0.0,
+    "maximum_fraction": 1.0,
+    "fallback_score": "confidence"
+  },
+  "phase2_policy": {
+    "representation_layers": [
+      8,
+      16,
+      24
+    ],
+    "influence_layer": 24,
+    "drift_threshold": 0.002,
+    "influence_threshold": 0.5,
+    "patience": 6,
+    "min_age": 4,
+    "lock_fraction": 0.04,
+    "max_queries": 8,
+    "window_width": 32
+  },
+  "phase3_policy": {
+    "compute_min_locked_fraction": 0.2,
+    "compute_min_remaining_steps": 8,
+    "compute_min_projected_saved_rows": 1500,
+    "compute_min_expected_gain": 0.03
+  },
+  "timing_scope": {
+    "executor": "paired A0/A2/A3 replay",
+    "estimated_online": "A3 replay plus measured semantic controller and incremental Phase-2 overhead"
+  }
+}

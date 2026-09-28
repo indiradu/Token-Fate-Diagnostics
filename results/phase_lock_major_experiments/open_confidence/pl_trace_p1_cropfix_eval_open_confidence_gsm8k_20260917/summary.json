@@ -1,0 +1,60 @@
+{
+  "policy": "open_confidence",
+  "examples": 20,
+  "batches": 5,
+  "accuracy": {
+    "a0": 0.6,
+    "a1": 0.6,
+    "a2": 0.6,
+    "a3": 0.6
+  },
+  "a0_to_a1": {
+    "exact_rate": 0.8,
+    "answer_change_rate": 0.1,
+    "regressions": 0,
+    "improvements": 0,
+    "regression_rate": 0.0,
+    "improvement_rate": 0.0
+  },
+  "a1_to_a2": {
+    "exact_rate": 1.0,
+    "answer_change_rate": 0.0,
+    "regressions": 0,
+    "improvements": 0,
+    "regression_rate": 0.0,
+    "improvement_rate": 0.0
+  },
+  "a2_to_a3": {
+    "exact_rate": 1.0,
+    "answer_change_rate": 0.0,
+    "regressions": 0,
+    "improvements": 0,
+    "regression_rate": 0.0,
+    "improvement_rate": 0.0
+  },
+  "mean_nfe": {
+    "a0": 128.0,
+    "a1": 98.8,
+    "a2": 98.8,
+    "a3": 98.8
+  },
+  "executor_runtime_gain_a3_vs_a0": 0.23772863892318774,
+  "executor_runtime_gain_a3_vs_a0_ci95": [
+    0.17281000505079402,
+    0.29122865753156124
+  ],
+  "estimated_online_runtime_gain_vs_a0": 0.2139187064304835,
+  "estimated_online_runtime_gain_vs_a0_ci95": [
+    0.14690233252037366,
+    0.26909548309869913
+  ],
+  "compute_runtime_gain_a3_vs_a2": 0.020996176919371945,
+  "compute_runtime_gain_a3_vs_a2_ci95": [
+    0.0020468105796513925,
+    0.04626680533381822
+  ],
+  "mean_controller_overhead_s_per_batch": 0.5081335402326659,
+  "mean_reference_locks_per_batch": 227.6,
+  "mean_removed_row_token_forwards_per_batch": 3317.6,
+  "compute_switch_rate": 0.6
+}
