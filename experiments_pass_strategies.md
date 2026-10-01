@@ -130,24 +130,49 @@ Do not test every nearby paper indiscriminately. The next method should add a
 new control or mechanism rather than repeat the token-stability question already
 covered by SureLock and LESS.
 
-### Priority 1: Fast-dLLM v1
+## Completed: Fast-dLLM v1 Component Test, Gen256
 
-**Why next:** Elastic-Cache extends the blockwise cache/parallel-decoding line
-established by Fast-dLLM. Testing the official Fast-dLLM v1 implementation on
-the same Level-5 and HumanEval slices isolates whether Elastic's adaptive
-attention/layer policy improves over a simpler block-cache baseline.
+Date: 2026-09-08
 
-Test:
+We tested the official Fast-dLLM v1 LLaDA generators at upstream commit
+`a9b81e4caa240c8cad4f7dc1889ff4852a0fca5b` inside our local matched harness.
+Five arms separated fixed versus confidence commitment and full recomputation
+versus prefix or dual caching.
 
-- official cached generator versus its matched full-recompute baseline;
-- Level-5 MATH gen256 and HumanEval gen256;
-- output and answer/program change;
-- original and modified accuracy;
-- both correctness-transition directions;
-- NFE, cache work proxy, and measured latency;
-- matched generation length, prompts, and hardware with Elastic-Cache.
+| Direct comparison | Level-5 output / answer changes | HumanEval output / program changes |
+| --- | ---: | ---: |
+| Commitment only | 9/54 / 4/54 | 17/70 / 17/70 |
+| Prefix cache only | 53/54 / 37/54 | 45/70 / 44/70 |
+| Commitment within prefix cache | 3/54 / 2/54 | 9/70 / 9/70 |
+| Add prefix cache to parallel | 53/54 / 38/54 | 45/70 / 44/70 |
+| Prefix+parallel -> dual+parallel | 52/54 / 37/54 | 39/70 / 38/70 |
 
-Official code: `https://github.com/NVlabs/Fast-dLLM` (`v1/llada`).
+Accuracy by arm:
+
+| Arm | Level-5 | HumanEval |
+| --- | ---: | ---: |
+| Fixed full recomputation | 5/54 | 38/70 |
+| Prefix cache, fixed commitment | 6/54 | 42/70 |
+| Parallel commitment, full recomputation | 5/54 | 39/70 |
+| Prefix cache + parallel commitment | 6/54 | 41/70 |
+| Dual cache + parallel commitment | 4/54 | 39/70 |
+
+The cache comparisons changed correctness in both directions, but no accuracy
+delta was statistically resolved. The important result is the component
+separation: confidence commitment alone was much less disruptive than K/V
+reuse, especially on Level-5. Committed token identity was not a certificate
+that its cached representation was equivalent to continued recomputation.
+
+Observed speedups versus fixed full recomputation were 2.23x/7.51x for
+confidence commitment only, 3.31x/10.08x for prefix cache plus commitment, and
+2.90x/9.27x for dual cache plus commitment on Level-5/HumanEval. Dual cache used
+fewer input query positions but ran 12.2% and 8.0% slower than prefix cache plus
+parallel commitment, reinforcing the distinction between a work proxy and
+realized runtime.
+
+This is not a reproduction of the paper's benchmark accuracy; only the
+upstream model/generators are official. Full report:
+`docs/fast_dllm_official_report_2026-09-08.md`.
 
 ### Deferred: d2Cache
 
@@ -162,9 +187,9 @@ speedup or matched cache work if this method is revisited.
 
 Official code: `https://github.com/Kamichanw/d2Cache`.
 
-### Priority 2: Dynamic-dLLM
+### Priority 1: Dynamic-dLLM
 
-**Why second:** Dynamic-dLLM combines Dynamic Cache Updating with Adaptive
+**Why next:** Dynamic-dLLM combines Dynamic Cache Updating with Adaptive
 Parallel Decoding. It is a strong end-to-end baseline, but it changes cache and
 token commitment together, so it is harder to identify which component caused
 an output or accuracy change. Test it after Fast-dLLM establishes the simpler
@@ -172,7 +197,7 @@ cache-plus-confidence control, and use component ablations where available.
 
 Official code: `https://github.com/TianyiWu233/DYNAMIC-DLLM`.
 
-### Priority 3: TraceLock - Separate Commitment Test
+### Priority 2: TraceLock - Separate Commitment Test
 
 TraceLock learns token-commitment timing from completed trajectories. It should
 be tested for commitment risk (`Y_commit` versus baseline), not treated as a KV
@@ -282,12 +307,12 @@ reproduction.
 
 ### Recommended Order
 
-1. Fast-dLLM v1.
-2. Dynamic-dLLM, with cache-only and commitment-only ablations if exposed.
-3. TraceLock as a separate commitment-only study.
-4. d2Cache only if another cache-selector baseline is still needed.
+1. Dynamic-dLLM, with cache-only and commitment-only ablations if exposed.
+2. TraceLock as a separate commitment-only study.
+3. d2Cache only if another cache-selector baseline is still needed.
 
-This three-method set covers the useful decision boundaries:
+Across the completed and remaining methods, this set covers the useful decision
+boundaries:
 
 - Fast-dLLM: simple KV cache plus confidence-based parallel commitment.
 - Dynamic-dLLM: adaptive cache budget plus adaptive parallel commitment.

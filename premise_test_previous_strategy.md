@@ -1,10 +1,13 @@
 # Premise Tests of Previous Strategies
 
-This document explains, in simple terms, what we tested with two previous
-strategies:
+This document begins with two controlled token-stability tests:
 
 1. a **SureLock-style stability rule**;
 2. the released **LESS** decoding rule.
+
+It then records system-level evidence from a Polestar proxy, official
+Elastic-Cache generators, and official Fast-dLLM v1 generators evaluated in our
+local matched harness.
 
 The central question was the same in both cases:
 
@@ -309,6 +312,50 @@ separately.
 The result supports output and per-example sensitivity, but not directional
 aggregate accuracy harm. Full details are in
 `docs/elastic_cache_official_report_2026-09-07.md`.
+
+## Official Fast-dLLM v1 Generator Result
+
+Fast-dLLM was especially useful because its released code exposes cache-only,
+parallel-commitment-only, and combined generators. We evaluated five matched
+arms to separate those mechanisms.
+
+On Level-5 MATH, confidence-based commitment with full representation
+recomputation changed 9/54 outputs and 4/54 answers, with no correctness
+changes. Adding prefix caching under the same confidence rule changed 53/54
+outputs and 38/54 answers, with 3 correct-to-wrong and 4 wrong-to-correct
+transitions.
+
+On HumanEval, confidence-only commitment changed 17/70 programs and changed one
+failing program into a passing one. Adding prefix caching to that decoder
+changed 45/70 outputs and 44/70 programs, with 4 passing-to-failing and 6
+failing-to-passing transitions.
+
+The cache-only comparison is even cleaner because the commitment schedule is
+identical. Prefix caching changed 53/54 Level-5 outputs and 45/70 HumanEval
+outputs. The committed prefix tokens kept their identities, but stale K/V
+representations changed later generation.
+
+Simple example: on `math500-l5-24`, full recomputation produced the correct
+answer `10`, while prefix caching with the same fixed schedule produced `3.5`.
+On `HumanEval/43`, full recomputation correctly tested whether `-num` had been
+seen, while prefix caching changed the condition to `num` and made the program
+fail.
+
+The clear conclusion is:
+
+> Fast-dLLM's commitment rule and its representation cache are different
+> interventions. In these tests, the cache caused far more output change than
+> confidence-based commitment alone.
+
+This supports the token-identity/reference-safety separation. It does not
+directly test whether measured high hidden-state drift predicts more harm than
+low drift, because this experiment did not stratify cache events by drift.
+
+Fast-dLLM already includes component ablations, so PhaseLock cannot claim that
+separating cache and commitment at a system level is itself novel. The remaining
+research distinction must be per-event causal safety and compute-utility gates.
+See `docs/fast_dllm_official_report_2026-09-08.md` for full quality, NFE,
+work-proxy, runtime, confidence-interval, and limitation details.
 
 ## Important Limitations
 
