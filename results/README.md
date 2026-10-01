@@ -334,3 +334,40 @@ harm is unresolved, but exact-output and per-example correctness instability are
 clear. The reported relative layer-recompute count is not a FLOP measurement.
 
 Detailed report: `../docs/elastic_cache_official_report_2026-09-07.md`.
+
+## Aligned Protocol Head-to-Head (2026-09-29 to 10-01)
+
+All of our locking policies and all of the collaborator's methods (their commit `24cd51b`) were run under
+one protocol: standard LLaDA decoding, 256 tokens, block 32, one token per step, batch 1, on 54 MATH
+Level-5 and 70 HumanEval questions, scored with our scorer. Each GPU job reruns B0. B0 output matched
+token for token across the three jobs (124/124 each), and the collaborator's dense decoder matched B0 on
+124/124. Protocol: `../docs/aligned_protocol_2026-09-29.md`.
+
+| Directory | Contents | Role in the study |
+| --- | --- | --- |
+| `aligned_standard_g256_20260929/` | `results.md`, policies, source gate, parity, pooled paired summary, FLOP summary, driver | Our six policies against B0. |
+| `aligned_collab_g256_20260930/analysis_phaseA/` | `results.md`, parity, pooled statistics vs B0 and vs their dense | The collaborator's five non-learned methods. |
+| `aligned_collab_g256_20260930/analysis_learned/` | `results.md`, parity, pooled statistics vs B0 | Their three learned methods, retrained here with their recipe. |
+| `aligned_collab_g256_20260930/combined_results.md` | one table of all 13 methods | Cross-campaign comparison; each speedup uses its own job's B0. |
+| `aligned_collab_g256_20260930/orchestration/` | compatibility shim, drivers, smoke gate, scorer bridge, sbatch files | How the collaborator's code was run and rescored. |
+
+| Method | Whose | Correct /124 | Δ correct (pp) [95% CI] | Speed vs B0 |
+| --- | --- | ---: | ---: | ---: |
+| B0 | both | 43 | — | 1.00x |
+| Confidence-0.9 (block) | ours | 44 | +0.81 [0.00, +2.42] | 3.72x |
+| TraceLock-0.95 | ours | 43 | 0.00 [-7.26, +7.26] | 3.08x |
+| TraceLock-LLaDA (retrained) | collaborator | 41 | -1.61 [-8.87, +5.65] | 2.76x |
+| Open-confidence PhaseLock (retrained) | collaborator | 42 | -0.81 [-5.65, +4.03] | 2.51x (estimate) |
+| H2 guard90_delay1 | collaborator | 47 | +3.23 [-4.03, +10.48] | 2.08x |
+| Direct safety predictor (retrained) | collaborator | 45 | +1.61 [-2.42, +6.45] | 2.01x |
+| SureLock-prompt 0.005 | ours | 45 | +1.61 [-4.84, +8.06] | 1.28x |
+| SureLock 5e-3 | collaborator | 34 | -7.26 [-14.52, 0.00] | 1.19x |
+| SureLock 5e-4 | collaborator | 34 | -7.26 [-14.52, -0.81] | 1.19x |
+| RepKL-freeze 0.0005 | ours | 43 | 0.00 [-5.65, +5.65] | 1.11x |
+| SureLock-gen 0.005 | ours | 44 | +0.81 [-4.84, +6.45] | 1.08x |
+| Capped confidence | collaborator | 43 | 0.00 [0.00, 0.00] | 0.99x |
+| Dense decoder | collaborator | 43 | 0.00 [0.00, 0.00] | 0.96x |
+
+The open-confidence time is the collaborator's additive estimate; their online planner gave identical
+outputs at 2.67x. Retrained models are not bit-identical to the collaborator's, and their Phase 3 always
+abstains. Raw records and scored generations stay local.

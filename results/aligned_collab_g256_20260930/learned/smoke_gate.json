@@ -1,0 +1,59 @@
+{
+  "same_job_B0_parity": "2/2",
+  "methods": {
+    "collab-TraceLock-LLaDA": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 144,
+        "latency_s": 7.782,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 84,
+        "latency_s": 5.623,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      }
+    ],
+    "collab-open-confidence": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 77,
+        "latency_s": 4.792,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 59,
+        "latency_s": 4.413,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      }
+    ],
+    "collab-safety-full": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 105,
+        "latency_s": 6.621,
+        "lock_count": null,
+        "extra_commit_count": 151,
+        "same_tokens_as_our_B0": true
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 97,
+        "latency_s": 7.417,
+        "lock_count": null,
+        "extra_commit_count": 159,
+        "same_tokens_as_our_B0": true
+      }
+    ]
+  }
+}

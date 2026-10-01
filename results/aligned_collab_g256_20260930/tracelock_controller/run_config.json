@@ -1,0 +1,16 @@
+{
+  "trace_dir": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/tracelock_traces",
+  "output_dir": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/tracelock_controller",
+  "max_steps": 10000,
+  "batch_size": 32,
+  "eval_batch_size": 32,
+  "eval_every": 200,
+  "max_eval_batches": 200,
+  "learning_rate": 0.0001,
+  "weight_decay": 0.01,
+  "max_grad_norm": 1.0,
+  "random_crop_min_ratio": 0.25,
+  "num_workers": 4,
+  "expected_source_counts": "gsm8k=2000,natural_questions=2000,alpaca=2000,kodcode=2000",
+  "seed": 42
+}

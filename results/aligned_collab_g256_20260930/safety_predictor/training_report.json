@@ -1,0 +1,146 @@
+{
+  "target": "sequence_safe",
+  "train_rows": 143,
+  "evaluation_rows": 144,
+  "train_examples": 24,
+  "evaluation_examples": 24,
+  "models": {
+    "cheap": {
+      "features": [
+        "confidence",
+        "margin",
+        "entropy",
+        "token_age",
+        "trace_probability",
+        "block_age_fraction"
+      ],
+      "target": "sequence_safe",
+      "fit_rows": 107,
+      "calibration_rows": 36,
+      "fit_examples": 18,
+      "calibration_examples": 6,
+      "train_safe_rate": 0.6293706293706294,
+      "calibration_metrics": {
+        "auroc": 0.934375,
+        "average_precision": 0.9628936735778844,
+        "brier": 0.0832022883877312,
+        "log_loss": 0.2801174326614948
+      },
+      "calibration_threshold": {
+        "threshold": 0.8655598237219008,
+        "selected": 16,
+        "unsafe": 0,
+        "coverage": 0.4444444444444444,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.1936076805344365
+      },
+      "evaluation_metrics": {
+        "auroc": 0.9150153217568947,
+        "average_precision": 0.9556021294911325,
+        "brier": 0.11771475153162585,
+        "log_loss": 0.35969060043527296
+      },
+      "evaluation_selection": {
+        "selected": 55,
+        "unsafe": 0,
+        "coverage": 0.3819444444444444,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.06528490111708637
+      }
+    },
+    "full": {
+      "features": [
+        "confidence",
+        "margin",
+        "entropy",
+        "token_age",
+        "trace_probability",
+        "block_age_fraction",
+        "max_hidden_drift",
+        "attention_influence",
+        "drift_available"
+      ],
+      "target": "sequence_safe",
+      "fit_rows": 107,
+      "calibration_rows": 36,
+      "fit_examples": 18,
+      "calibration_examples": 6,
+      "train_safe_rate": 0.6293706293706294,
+      "calibration_metrics": {
+        "auroc": 0.946875,
+        "average_precision": 0.9675073099415206,
+        "brier": 0.0840043239933855,
+        "log_loss": 0.27744050935055947
+      },
+      "calibration_threshold": {
+        "threshold": 0.8078189912645738,
+        "selected": 16,
+        "unsafe": 0,
+        "coverage": 0.4444444444444444,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.1936076805344365
+      },
+      "evaluation_metrics": {
+        "auroc": 0.9180796731358528,
+        "average_precision": 0.9541170131340483,
+        "brier": 0.1214499455757873,
+        "log_loss": 0.3644784890784563
+      },
+      "evaluation_selection": {
+        "selected": 58,
+        "unsafe": 1,
+        "coverage": 0.4027777777777778,
+        "observed_unsafe_rate": 0.017241379310344827,
+        "unsafe_rate_upper95": 0.09140858093468014
+      }
+    }
+  },
+  "baselines": {
+    "confidence": {
+      "calibration_threshold": {
+        "threshold": 0.757960855960846,
+        "selected": 16,
+        "unsafe": 0,
+        "coverage": 0.4444444444444444,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.1936076805344365
+      },
+      "evaluation_metrics": {
+        "auroc": 0.9284984678243104,
+        "average_precision": 0.9611485118764045,
+        "brier": 0.1120543176360723,
+        "log_loss": 0.3404783389372358
+      },
+      "evaluation_selection": {
+        "selected": 57,
+        "unsafe": 0,
+        "coverage": 0.3958333333333333,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.06313883485297894
+      }
+    },
+    "trace": {
+      "calibration_threshold": {
+        "threshold": 0.625,
+        "selected": 15,
+        "unsafe": 0,
+        "coverage": 0.4166666666666667,
+        "observed_unsafe_rate": 0.0,
+        "unsafe_rate_upper95": 0.20388330103584862
+      },
+      "evaluation_metrics": {
+        "auroc": 0.8958120531154239,
+        "average_precision": 0.9371024108525401,
+        "brier": 0.15216750568826248,
+        "log_loss": 0.44403224397370156
+      },
+      "evaluation_selection": {
+        "selected": 59,
+        "unsafe": 3,
+        "coverage": 0.4097222222222222,
+        "observed_unsafe_rate": 0.05084745762711865,
+        "unsafe_rate_upper95": 0.139165022152769
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "output_parity": {
+    "B0": {
+      "compared": 124,
+      "matched": 124,
+      "mismatched": [],
+      "reference": "representation_kl_last_hidden_20260921_203301:B0"
+    },
+    "RepKL-freeze-0.0005": {
+      "compared": 124,
+      "matched": 124,
+      "mismatched": [],
+      "reference": "representation_kl_last_hidden_20260921_203301:R-sparse-eps-0.0005"
+    },
+    "TraceLock-0.95": {
+      "compared": 124,
+      "matched": 124,
+      "mismatched": [],
+      "reference": "surelock_token_vs_tracelock_20260922_2145:T-adaptive-0.95"
+    }
+  },
+  "tracelock_profile_parity": {
+    "compared": 124,
+    "matched": 124,
+    "mismatched": [],
+    "reference": "surelock_token_vs_tracelock_20260922_2145:T-adaptive-0.95"
+  }
+}

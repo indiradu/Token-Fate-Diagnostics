@@ -1,0 +1,89 @@
+{
+  "protocol": "docs/aligned_protocol_2026-09-29.md",
+  "methods": [
+    "collab-TraceLock-LLaDA",
+    "collab-open-confidence",
+    "collab-safety-full"
+  ],
+  "repeats": 3,
+  "warmups": 1,
+  "batch_size": 1,
+  "decode_config": {
+    "steps": 256,
+    "gen_length": 256,
+    "block_length": 32,
+    "temperature": 0.0,
+    "cfg_scale": 0.0,
+    "policy": "confidence",
+    "beta_kl": 1.0,
+    "beta_regret": 2.0,
+    "cpv_window": 4,
+    "mask_id": 126336,
+    "logits_eos_inf": false,
+    "confidence_eos_eot_inf": false
+  },
+  "checkpoint": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/tracelock_controller/best_f0_5.pt",
+  "checkpoint_sha256": "43af456416cd45e8a2a22accd117abc05f287456a762ec11610e42bf10a8ba3b",
+  "controller_config": {
+    "projected_hidden_dim": 128,
+    "controller_dim": 384,
+    "encoder_layers": 3,
+    "attention_heads": 8,
+    "ffn_dim": 768,
+    "dropout": 0.1,
+    "max_sequence_length": 1024,
+    "mistake_weight": 4.0,
+    "threshold_regularizer": 0.001,
+    "deployment_probability": 0.95
+  },
+  "projection_sha256": "88b8521cc57c2e23c79ebf103b771193d768d21ff3f4b415c2c6afb5022ce238",
+  "predictor_dir": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/safety_predictor",
+  "safety_threshold": 0.8078189912645738,
+  "phase2": {
+    "representation_layers": [
+      8,
+      16,
+      24
+    ],
+    "influence_layer": 24,
+    "drift_threshold": 0.002,
+    "influence_threshold": 0.5,
+    "patience": 6,
+    "min_age": 4,
+    "lock_fraction": 0.04,
+    "max_queries": 8,
+    "window_width": 32
+  },
+  "replay_common": {
+    "semantic_lock_fraction": 0.06,
+    "semantic_min_confidence": 0.95,
+    "semantic_optional_steps_per_block": 2,
+    "representation_policy": "capped_drift",
+    "representation_delay_updates": 1,
+    "representation_layer": 8,
+    "representation_drift_threshold": 0.005,
+    "representation_patience": 4,
+    "representation_min_age": 1,
+    "representation_lock_fraction": 0.06,
+    "compute_min_locked_fraction": 0.2,
+    "compute_min_remaining_steps": 8,
+    "compute_min_projected_saved_rows": 1500,
+    "compute_min_expected_gain": 0.03,
+    "bucket_width_multiple": 16,
+    "max_bucket_size": 8,
+    "force_semantic_plan_tokens": true
+  },
+  "latency_table": "always-abstain batch-1 table (Phase 3 off)",
+  "prompts_sha256": "3c5dc3eb2d6761e4efef647a3e5712974836ac977fb549676fd83f1042f200e3",
+  "driver_sha256": "4f3bdba1f142d5c3d7146f3a890aea05bb7618727f2515cdeae2a5de1a4c216b",
+  "preflight": {
+    "gpu": "NVIDIA RTX 5000 Ada Generation",
+    "uuid": "GPU-d58c334e-6ae9-3ec1-f156-a349bd9d328e",
+    "free_bytes": 33259388928,
+    "host": "ws-l1-008",
+    "slurm_job_id": "212840"
+  },
+  "torch": "2.8.0+cu126",
+  "python": "3.13.5",
+  "started_at": "2026-10-01T09:06:43.420406+00:00"
+}

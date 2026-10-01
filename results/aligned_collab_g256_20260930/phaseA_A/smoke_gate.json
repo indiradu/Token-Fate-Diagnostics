@@ -1,0 +1,95 @@
+{
+  "same_job_B0_parity": "2/2",
+  "methods": {
+    "collab-dense": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 256,
+        "latency_s": 14.08,
+        "lock_count": 0,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": true
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 256,
+        "latency_s": 17.228,
+        "lock_count": 0,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": true
+      }
+    ],
+    "collab-SureLock-5e-4": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 256,
+        "latency_s": 12.604,
+        "lock_count": 350,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 256,
+        "latency_s": 16.659,
+        "lock_count": 415,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      }
+    ],
+    "collab-SureLock-5e-3": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 256,
+        "latency_s": 12.603,
+        "lock_count": 352,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 256,
+        "latency_s": 13.146,
+        "lock_count": 414,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      }
+    ],
+    "collab-capped-confidence": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 244,
+        "latency_s": 13.674,
+        "lock_count": null,
+        "extra_commit_count": 12,
+        "same_tokens_as_our_B0": true
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 241,
+        "latency_s": 16.406,
+        "lock_count": null,
+        "extra_commit_count": 15,
+        "same_tokens_as_our_B0": true
+      }
+    ],
+    "collab-H2-guard90-delay1": [
+      {
+        "example": "math500-l5-232",
+        "nfe": 177,
+        "latency_s": 8.854,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      },
+      {
+        "example": "HumanEval/70",
+        "nfe": 135,
+        "latency_s": 7.026,
+        "lock_count": null,
+        "extra_commit_count": null,
+        "same_tokens_as_our_B0": false
+      }
+    ]
+  }
+}

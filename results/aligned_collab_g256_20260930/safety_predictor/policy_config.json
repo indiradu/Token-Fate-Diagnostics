@@ -1,0 +1,44 @@
+{
+  "target": "sequence_safe",
+  "max_observed_unsafe_rate": 0.0,
+  "minimum_selected": 8,
+  "models": {
+    "cheap": {
+      "path": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/safety_predictor/commitment_safety_cheap.joblib",
+      "threshold": 0.8655598237219008,
+      "features": [
+        "confidence",
+        "margin",
+        "entropy",
+        "token_age",
+        "trace_probability",
+        "block_age_fraction"
+      ]
+    },
+    "full": {
+      "path": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/aligned_collab_g256_20260930/safety_predictor/commitment_safety_full.joblib",
+      "threshold": 0.8078189912645738,
+      "features": [
+        "confidence",
+        "margin",
+        "entropy",
+        "token_age",
+        "trace_probability",
+        "block_age_fraction",
+        "max_hidden_drift",
+        "attention_influence",
+        "drift_available"
+      ]
+    }
+  },
+  "baselines": {
+    "confidence": {
+      "feature": "confidence",
+      "threshold": 0.757960855960846
+    },
+    "trace": {
+      "feature": "trace_probability",
+      "threshold": 0.625
+    }
+  }
+}

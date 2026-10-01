@@ -1,0 +1,21 @@
+{
+  "source": "natural_questions",
+  "requested_examples": 2000,
+  "candidate_examples": 20000,
+  "target_completed_examples": 2000,
+  "completed_examples": 2000,
+  "resumed_examples": 0,
+  "new_completed_examples": 2000,
+  "skipped_examples": 0,
+  "saved_step_samples": 76000,
+  "new_saved_step_samples": 76000,
+  "nfe": 64000,
+  "elapsed_s": 6471.850782117981,
+  "resume_audit": {
+    "complete_examples": 0,
+    "partial_examples": 0,
+    "trace_files": 0
+  },
+  "projection": "seeded Gaussian adapter shared by three hidden layers",
+  "paper_deviation": "LLaDA projection checkpoint was not released"
+}

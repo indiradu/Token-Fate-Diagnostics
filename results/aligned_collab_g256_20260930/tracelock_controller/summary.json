@@ -1,0 +1,33 @@
+{
+  "train_step_samples": 271776,
+  "validation_step_samples": 32224,
+  "max_steps": 10000,
+  "best_f0_5_at_095": 0.8969332636347795,
+  "elapsed_s": 2043.4717579879944,
+  "controller": {
+    "projected_hidden_dim": 128,
+    "controller_dim": 384,
+    "encoder_layers": 3,
+    "attention_heads": 8,
+    "ffn_dim": 768,
+    "dropout": 0.1,
+    "max_sequence_length": 1024,
+    "mistake_weight": 4.0,
+    "threshold_regularizer": 0.001,
+    "deployment_probability": 0.95
+  },
+  "trace_manifest_audit": {
+    "manifest_files": 4,
+    "unique_examples": 8000,
+    "source_counts": {
+      "alpaca": 2000,
+      "gsm8k": 2000,
+      "kodcode": 2000,
+      "natural_questions": 2000
+    },
+    "manifest_step_samples": 304000,
+    "train_step_samples": 271776,
+    "validation_step_samples": 32224
+  },
+  "paper_deviation": "authors did not release the LLaDA projection; seeded Gaussian projection used"
+}

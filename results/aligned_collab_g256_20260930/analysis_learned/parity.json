@@ -1,0 +1,12 @@
+{
+  "same_job_B0_vs_aligned_campaign_B0": {
+    "compared": 124,
+    "matched": 124,
+    "mismatched": []
+  },
+  "collab_dense_vs_same_job_B0": {
+    "compared": 0,
+    "matched": 0,
+    "mismatched": []
+  }
+}

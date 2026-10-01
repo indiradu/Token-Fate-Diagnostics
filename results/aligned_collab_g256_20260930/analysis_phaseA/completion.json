@@ -1,0 +1,13 @@
+{
+  "complete": true,
+  "methods": [
+    "collab-dense",
+    "collab-SureLock-5e-4",
+    "collab-SureLock-5e-3",
+    "collab-capped-confidence",
+    "collab-H2-guard90-delay1"
+  ],
+  "collab_records": 1860,
+  "b0_records": 372,
+  "completed_at": "2026-10-01T07:23:44.635469+00:00"
+}

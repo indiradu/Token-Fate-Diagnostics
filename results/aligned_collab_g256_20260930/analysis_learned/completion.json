@@ -1,0 +1,11 @@
+{
+  "complete": true,
+  "methods": [
+    "collab-TraceLock-LLaDA",
+    "collab-open-confidence",
+    "collab-safety-full"
+  ],
+  "collab_records": 1116,
+  "b0_records": 372,
+  "completed_at": "2026-10-01T11:50:19.057446+00:00"
+}

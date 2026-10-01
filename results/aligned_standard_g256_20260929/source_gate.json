@@ -1,0 +1,22 @@
+{
+  "changes": "paper_decode.py/paper_experiment.py: new C-block arm (confidence threshold inside fixed blocks); tests/test_paper_confidence_block.py added",
+  "derived_from": "results/surelock_token_vs_tracelock_20260922_2145/source (sha256 8e9713401242ac9ddb8727c42896b98dacbbf225fccea379877ee6eec850e1e9)",
+  "frozen_at": "2026-09-29T12:41:37.339126+00:00",
+  "interpreter": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/.venv/bin/python (system-site-packages over anaconda + accelerate; pass 7 used this venv)",
+  "manifest_sha256": {
+    "eval_code.jsonl": "6dbae289cbbe4049f694f08f43516c6f322e40214ad7d0d7601fedd1f9f784c7",
+    "eval_math.jsonl": "4fbeff1ae87b860843a8e8c70e3557c3e6024fb5151056837f09b96ce4123b37",
+    "smoke_code.jsonl": "f5d5299baf07088f051e68ec311c36a46e8dd30a2c8cdd50c5212e444b9ef878",
+    "smoke_math.jsonl": "1b15b28dfaa50934620dd7c0ae003651e1263b054df947af7cf41c90e268ddfa",
+    "smoke_pair.jsonl": "e6f09a867963a56d0d358406779c2e4f5e24d7a0b6d80c40f60b0e22f43a1e96"
+  },
+  "policy_sha256": "e4ef130214dc5bdc41d274ea02ea81eefd1e744f1b91d26398f166774628494a",
+  "runtime_cache_modeling_llada_sha256": "98bac7e53fef0bb7ca01e3716c11a7f710d183e10dbb9783b88db9dbba2e3766",
+  "source_sha256": "ddfbf388c5cba804f579b104d807d6e352ce79eb22c67a9a22d53e56094d29b0",
+  "source_tests": {
+    "failed": 1,
+    "failed_test": "tests/test_locking_policy.py::test_b0_trace_matches_frozen_source_collection_decoder_without_ties",
+    "failure_reason": "cannot locate an older frozen module from this layout; fails identically on the unmodified pass-7 source",
+    "passed": 233
+  }
+}
