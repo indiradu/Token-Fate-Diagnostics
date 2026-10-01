@@ -96,6 +96,23 @@ def _bubblewrap_command(program: str, unshare_network: bool = True) -> list[str]
     return command
 
 
+def _first_stderr_diagnostic(stderr: str) -> str:
+    for line in stderr.splitlines():
+        stripped = line.lstrip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def _bubblewrap_launcher_diagnostic(stderr: str) -> bool:
+    return _first_stderr_diagnostic(stderr).startswith("bwrap:")
+
+
+def _bubblewrap_network_diagnostic(stderr: str) -> bool:
+    first = _first_stderr_diagnostic(stderr)
+    return first.startswith("bwrap:") and ("NETLINK_ROUTE" in first or "loopback:" in first)
+
+
 def evaluate_humaneval_program(
     generation: str,
     prompt: str,
@@ -121,13 +138,14 @@ def evaluate_humaneval_program(
         )
     except subprocess.TimeoutExpired:
         return CodeEvaluation(False, "timeout")
-    nested_network_block = "NETLINK_ROUTE" in completed.stderr or "loopback:" in completed.stderr
     if (
         completed.returncode != 0
-        and nested_network_block
+        and _bubblewrap_network_diagnostic(completed.stderr)
         and os.environ.get("CODEX_SANDBOX_NETWORK_DISABLED") == "1"
     ):
         fallback = _bubblewrap_command(program, unshare_network=False)
+        if fallback is None:
+            return CodeEvaluation(False, "sandbox_unavailable")
         try:
             completed = subprocess.run(
                 fallback,
@@ -144,6 +162,6 @@ def evaluate_humaneval_program(
     if completed.returncode == 0:
         return CodeEvaluation(True, "passed")
     stderr = completed.stderr[-1000:].strip()
-    if "Operation not permitted" in stderr or "bwrap:" in stderr:
+    if _bubblewrap_launcher_diagnostic(completed.stderr):
         return CodeEvaluation(False, "sandbox_error", stderr)
     return CodeEvaluation(False, "failed_tests", stderr)
