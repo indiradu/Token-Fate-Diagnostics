@@ -1,0 +1,14 @@
+{
+ "n_math": 120,
+ "n_gsm8k": 80,
+ "test_questions_checked": 552,
+ "exact_overlap": [],
+ "substring_overlap": [],
+ "dropped": [],
+ "disjoint_after_drop": true,
+ "note": "colliding train questions (if any) were dropped from the lists; the lists written are disjoint from all test questions",
+ "sha256": {
+  "train_math": "3906648302fb1ab89538a6a696ea0bc16945083288e73c7af108335955eabaa4",
+  "train_gsm8k": "48400d7312d6c8ac445c9f18155482420c7dde3abb15326b3356ce91fe5b0d8f"
+ }
+}

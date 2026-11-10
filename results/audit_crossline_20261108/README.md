@@ -1,0 +1,30 @@
+# Cross-line consistency audit of the quality damage (HumanEval 164, gen 512; 2026-11-08)
+
+CPU only, pure-Python (stdlib), nothing committed. Data: `results/farcache_stack_20261105/records/stage1.jsonl` (HumanEval rows) and `manifests/he164.jsonl`; all scores are the stored `correct` flags. Terms: WORD LOCK = which blank positions are written per call (C-0.9, C-0.8, Lctx-0.8); REPRESENTATION CACHE = which rows' K/V are reused (S32, S16; dense refresh at each 32-block start; D = dense). Audited object: the generated answer program (answer rows, HumanEval).
+
+Question: are the programs lost by the representation cache (dense word lock C-0.9 passes, cache cell fails) mostly *cross-line inconsistencies* (two parts of the program disagree), as the collaborator's by-eye reading of 4 programs suggested?
+
+**Verdict: not supported** (pre-registered rule, primary analysis). Cross-line inconsistency is 9/38 = 0.24 [0.11, 0.40] of cache-lost programs, vs 1/10 in dense word-lock-control losses and 2/10 in the dense programs that the cache cells got right. The differences are in the direction of the hypothesis (+14 and +4 points) but nowhere near resolved (one-sided Fisher p = 0.32 and 0.59). The failure types of cache-lost programs (local slip 42%, cross-line 24%, wrong algorithm 26%, tail/syntax artefact 8%) look like the dense decoder's own wrong programs (38 / 21 / 21 / 12%; chi-square permutation p = 0.47). The one sensitivity variant that crosses the "weakly supported" threshold (C-0.9 cache cells only, 7/22) is not significant (p = 0.19 / 0.41). What the data cannot show: that the cross-line reading is false, only that this audit finds no excess of it at n = 38 vs 10; and the *mechanism* (lines written against different cached views) is untestable from these records because the call that wrote each token is not stored.
+
+## Files
+- `PREREGISTERED_AUDIT.md`: protocol written before any set was built; Addendum 1 (order of operations, leaks, pool caps) before the pool; Addendum 2 (stray-fence rule, (b) subtype convention, deviations) after both labelling passes and before unblinding; one correction line (12, not 13, hypothesis tasks).
+- `results.md` (all tables), `results.json`, `pair_table.csv` (per cell and task: set, first divergence, edit class, signature flags; no model text).
+- `labels/pass1.jsonl`, `labels/pass2.jsonl` (id, category, confidence, one-line note), `labels/order_pass{1,2}.json`.
+- `pool_items.jsonl` (the 77 blind items: prompt + two programs; contains full model generations, keep local), `pool_key.json` (id -> task, cell, class; opened only after both passes were saved).
+- `scripts/`: `audit_lib.py` (loading, sets, edit class, 6 signatures, statistics), `test_signatures.py` (synthetic unit tests), `build_pool.py`, `show_pool.py`, `add_labels.py`, `analyze_audit.py`. Rerun: `cd scripts && python3 test_signatures.py && python3 analyze_audit.py` (about 20 s; `build_pool.py` regenerates the pool with new random ids, which would invalidate the saved labels: do not rerun it).
+
+## Main numbers (details in `results.md`)
+- Sets vs dense C-0.9 (68 correct): LOST/GAINED S32:C-0.9 17/8, S32:Lctx-0.8 18/7, S32:C-0.8 16/11, S16:C-0.9 15/9, S16:C-0.8 15/11; dense controls D:C-0.8 4/5, D:Lctx-0.8 7/5; S16:Lctx-0.8 32/4 (22 of the 32 lost programs do not parse). Cache cells lose 22-26% of the 68 dense-pass tasks, the word-lock controls 6-10%.
+- Per task: 34 tasks are lost by at least one main cache cell; 13 by >= 3 cells (null 6.2, P = 0.0007), 5 by >= 4 (null 0.9), 3 by all 5. 9 of the 10 tasks lost by a dense control are also lost by a cache cell.
+- First divergence: cache-lost programs diverge from the dense text at median position 107 (relative 0.61); offsets in the 32-block are 9 / 28 / 33 / 30% (bins 0-7, 8-15, 16-23, 24-31), i.e. not enriched right after a refresh and not enriched late in the block compared with other cache-changed programs (14 / 34 / 27 / 26%). Cache-changed programs as a group are depleted in the first quarter of a block compared with the dense controls' changes (14% vs 28%).
+- Edit class vs the dense program: 20% LOCAL, 21% BLOCK, 54% STRUCTURAL, 5% unparsable for cache-lost programs; so a lost program is usually a different program after the divergence, not the dense program with one edit. Same for other changed programs (STRUCTURAL 47%).
+- Signatures (6, all reported): rare (S1 undefined name 10% of cache-lost programs, S4 unguarded index of a possibly-empty list 10%, the others <= 4%); S3 recompute-after-assign (the HumanEval/4 pattern) fires in 1 of 81; they mostly mark failing programs of every kind (cache and dense), not LOST specifically.
+- Blind reading: it flagged a defect in 68 of 70 programs that really fail and (d) "no defect" in 7 of 7 that pass; the two misses were a doctest-hostile main block (HumanEval/51, correct body) and a spec/test mismatch (HumanEval/116). Self-agreement between my two passes 76/77 (kappa 0.98), which is not independent evidence (same agent, same session, memory not erased).
+- Tail artefacts: 4 of 38 cache-lost items (all S32:Lctx-0.8) and 3 of 10 dense-control items fail because of a stray closing fence, a syntax error or a typo in a trailing `__main__` block, not because of the function body.
+
+## Representative examples (shortened; generations stay local)
+- (b) HumanEval/4, S32:C-0.9: `absolute_deviations = sum(abs(x - mean) for x in numbers)` then `return sum(absolute_deviations) / len(numbers)` (a scalar summed again).
+- (b) HumanEval/9, S32:C-0.9: `rolling_max = []`, then in the loop `if num > rolling_max[-1]` (reads the last item of an empty list).
+- (b) HumanEval/69, S32:C-0.9: `greatest_num = num` followed by `if num > greatest_num:` (the guard is dead; last qualifying value wins).
+- (a) HumanEval/74, S32:Lctx-0.8: `elif total2 < total2:` (one token); HumanEval/16 drops `.lower()`; HumanEval/43 tests `num in seen` instead of `-num in seen`.
+- (c) HumanEval/25: a hard-coded ladder of primes instead of trial division (the dense decoder's own wrong programs show the same).

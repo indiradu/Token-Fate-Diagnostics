@@ -371,3 +371,19 @@ token for token across the three jobs (124/124 each), and the collaborator's den
 The open-confidence time is the collaborator's additive estimate; their online planner gave identical
 outputs at 2.67x. Retrained models are not bit-identical to the collaborator's, and their Phase 3 always
 abstains. Raw records and scored generations stay local.
+
+## Selective cache and refresh campaigns (2026-11-04 to 2026-11-11)
+Words: WORD LOCK = which blanks are written per call; REPRESENTATION CACHE = which rows' K/V are reused. LLaDA-8B-Instruct, bf16, temperature 0. Raw records, generations, frozen source copies, fitted-rule pickles and logs stay local; only summaries, pre-registrations and orchestration scripts are tracked. The highlighted cells are in `depth_refresh_20261109/README.md`.
+
+| Directory | Contents | Role in the study |
+| --- | --- | --- |
+| `selective_cache_20261104/` | pre-registration, README, results tables (Part A staleness per layer and row class, Part C ablation) | The far-blank cache and what predicts stale rows; Elastic-Cache's trigger against a block-start schedule. |
+| `farcache_stack_20261105/` | pre-registration, README, results, HumanEval diagnostics, Lctx attribution | The S32 and S16 caches stacked with C-0.9, C-0.8 and Lctx-0.8 on HumanEval, MATH and GSM8K. |
+| `stale_cause_20261108/` | pre-registration with Outcome, noise-matched control, oracle repair | Same-size random noise does not reproduce the loss; no single row class restores the first divergence. |
+| `learn2pd_control_20261108/` | official-code notes, results | Learn2PD word-lock baseline and the truncation confound. |
+| `audit_crossline_20261108/` | blind audit of lost programs | Cross-line inconsistency is not a typical failure signature. |
+| `depth_refresh_20261109/` | pre-registration with Outcomes, results of stages A to E (HumanEval half), extra metrics, orchestration | Blank-row partial refresh (P4) against dense refresh (K4) and the word-count trigger; MATH at 512 and 1024 tokens; word lock x cache grid; Elastic recipe in our engine. |
+| `lctx_refit_20261110/` | pre-registration, fit reports, orchestration | Refit of Lctx for the 16-blank window and under the cache (decodes queued or running when written). |
+| `lctx_features_20261110/` | pre-registration, orchestration | Gated feature ablation for Lctx (queued when written; no result). |
+| `tracelock_stack_20261111/` | feasibility note, pre-registration, orchestration | TraceLock under the S32, K4 and P4 caches (queued when written; no result). |
+| `metrics_survey_20261110/` | survey of the metrics 18 related papers report | Fetch-tool extractions, not verified against PDFs; basis for the comprehensive comparison. |

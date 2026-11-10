@@ -1,0 +1,30 @@
+{
+ "n_fit": 60,
+ "n_thr": 20,
+ "n_fit_and_thr_unique": 80,
+ "fit_thr_ids_equal_original_rules_json": true,
+ "source": "data/math500_level5.jsonl (sha256 689dc192828ffdb73fd49c091c649ae7fe882f2e9c9f57471692ee1ea9b0e34d)",
+ "manifest_sha256": {
+  "fit_thr.jsonl": "006af234eac29604af5ea76a31f1bf97f689707ac63666516415695eb43c5441",
+  "he164.jsonl": "5013d94f8089de9b8c7aab7d1c25843920152ae93ee63a0b673bfce527e4c2ad",
+  "math_l14.jsonl": "90393752b0d59171e4b15515a3b65d2aa1c1a796758eeef84cb706746f9c7d01",
+  "math_l5.jsonl": "4fbeff1ae87b860843a8e8c70e3557c3e6024fb5151056837f09b96ce4123b37"
+ },
+ "math108": {
+  "n_eval": 108,
+  "n_unique_ids": 108,
+  "id_overlap": [],
+  "text_overlap": [],
+  "substring_overlap": [],
+  "disjoint": true
+ },
+ "he164": {
+  "n_eval": 164,
+  "n_unique_ids": 164,
+  "id_overlap": [],
+  "text_overlap": [],
+  "substring_overlap": [],
+  "disjoint": true
+ },
+ "disjoint": true
+}

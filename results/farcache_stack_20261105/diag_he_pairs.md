@@ -1,0 +1,11 @@
+- S32:block+k4 vs S32:main: answers +9 [+2, +17], speed of S32:block+k4 relative to S32:main 0.880 [0.845, 0.917]
+- S32:block+k2 vs S32:main: answers +8 [-1, +17], speed of S32:block+k2 relative to S32:main 0.705 [0.662, 0.750]
+- S32:nofar vs S32:main: answers +10 [+1, +19], speed of S32:nofar relative to S32:main 0.748 [0.707, 0.790]
+- S32:block-noeos vs S32:main: answers -1 [-3, +0], speed of S32:block-noeos relative to S32:main 0.751 [0.719, 0.779]
+- S16:block-noeos vs S16:every+eos: answers -7 [-17, +3], speed of S16:block-noeos relative to S16:every+eos 1.350 [1.243, 1.458]
+- S32:nofar vs D:C-0.9: answers +1 [-8, +10], speed of S32:nofar relative to D:C-0.9 1.677 [1.567, 1.791]
+- S32:block+k4 vs D:C-0.9: answers +0 [-9, +9], speed of S32:block+k4 relative to D:C-0.9 1.973 [1.867, 2.086]
+- S32:block+k2 vs D:C-0.9: answers -1 [-8, +6], speed of S32:block+k2 relative to D:C-0.9 1.582 [1.499, 1.669]
+- S32:block-noeos vs D:C-0.9: answers -10 [-19, -1], speed of S32:block-noeos relative to D:C-0.9 1.685 [1.581, 1.792]
+- S16:every+eos vs D:C-0.9: answers +1 [-3, +5], speed of S16:every+eos relative to D:C-0.9 1.124 [1.050, 1.200]
+- median first-divergence position of S32:main vs D:C-0.9: lost tasks 105, all tasks 94; tasks with identical tokens 26/164

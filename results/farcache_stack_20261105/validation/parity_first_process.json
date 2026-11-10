@@ -1,0 +1,107 @@
+{
+ "rows": [
+  {
+   "q": "math500-l5-1",
+   "check": "D:C-0.9 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "D:C-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "D:Lctx-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "S16:C-0.9 vs Part C block+EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "S32:C-0.9 with dense refresh every call vs D:C-0.9",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "S32:Lctx-0.8 with dense refresh every call vs D:Lctx-0.8",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:C-0.9 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:C-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:Lctx-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "S32:C-0.9 with dense refresh every call vs D:C-0.9",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "S32:Lctx-0.8 with dense refresh every call vs D:Lctx-0.8",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "D:C-0.9 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "D:C-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "D:Lctx-0.8 vs word-lock records",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "S16:C-0.9 vs Part C block+EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "S32:C-0.9 with dense refresh every call vs D:C-0.9",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-11",
+   "check": "S32:Lctx-0.8 with dense refresh every call vs D:Lctx-0.8",
+   "tokens_equal": true,
+   "calls_equal": true
+  }
+ ],
+ "all_match": true
+}

@@ -1,0 +1,298 @@
+{
+ "n": 164,
+ "dense_correct": 68,
+ "parity": {
+  "P-stale == stage-1 S32:C-0.9 (tokens)": [
+   164,
+   164
+  ],
+  "P-fresh == stage-1 dense C-0.9 (all 512 tokens)": [
+   133,
+   164
+  ],
+  "P-fresh == stage-1 dense C-0.9 (tokens up to the first EOS/EOT)": [
+   133,
+   164
+  ],
+  "P-fresh and dense agree on pass/fail": [
+   160,
+   164
+  ]
+ },
+ "arms": {
+  "S32 (stage 1)": {
+   "correct": 59,
+   "net_vs_dense": [
+    -9,
+    -19.0,
+    1.0,
+    17,
+    8
+   ],
+   "net_vs_fresh": [
+    -9,
+    -18.0,
+    0.0,
+    16,
+    7
+   ],
+   "net_vs_stale": [
+    0,
+    0.0,
+    0.0,
+    0,
+    0
+   ],
+   "text_differs_dense": 0.8414634146341463
+  },
+  "P-fresh": {
+   "correct": 68,
+   "net_vs_dense": [
+    0,
+    -4.0,
+    4.0,
+    2,
+    2
+   ],
+   "net_vs_fresh": [
+    0,
+    0.0,
+    0.0,
+    0,
+    0
+   ],
+   "net_vs_stale": [
+    9,
+    0.0,
+    18.0,
+    7,
+    16
+   ],
+   "text_differs_dense": 0.18902439024390244
+  },
+  "P-stale": {
+   "correct": 59,
+   "net_vs_dense": [
+    -9,
+    -19.0,
+    1.0,
+    17,
+    8
+   ],
+   "net_vs_fresh": [
+    -9,
+    -18.0,
+    0.0,
+    16,
+    7
+   ],
+   "net_vs_stale": [
+    0,
+    0.0,
+    0.0,
+    0,
+    0
+   ],
+   "text_differs_dense": 0.8414634146341463
+  },
+  "P-rand0.5": {
+   "correct": 66,
+   "net_vs_dense": [
+    -2,
+    -7.0,
+    3.0,
+    4,
+    2
+   ],
+   "net_vs_fresh": [
+    -2,
+    -8.0,
+    3.0,
+    5,
+    3
+   ],
+   "net_vs_stale": [
+    7,
+    -2.0249999999999773,
+    16.0,
+    8,
+    15
+   ],
+   "text_differs_dense": 0.47560975609756095
+  },
+  "P-rand1a": {
+   "correct": 72,
+   "net_vs_dense": [
+    4,
+    -6.0,
+    14.0,
+    10,
+    14
+   ],
+   "net_vs_fresh": [
+    4,
+    -5.0,
+    13.0,
+    8,
+    12
+   ],
+   "net_vs_stale": [
+    13,
+    3.0,
+    23.0,
+    7,
+    20
+   ],
+   "text_differs_dense": 0.7317073170731707
+  },
+  "P-rand1b": {
+   "correct": 68,
+   "net_vs_dense": [
+    0,
+    -8.0,
+    8.0,
+    9,
+    9
+   ],
+   "net_vs_fresh": [
+    0,
+    -9.0,
+    9.0,
+    10,
+    10
+   ],
+   "net_vs_stale": [
+    9,
+    -2.0,
+    20.0,
+    10,
+    19
+   ],
+   "text_differs_dense": 0.75
+  },
+  "P-rand2": {
+   "correct": 0,
+   "net_vs_dense": [
+    -68,
+    -81.0,
+    -56.0,
+    68,
+    0
+   ],
+   "net_vs_fresh": [
+    -68,
+    -81.0,
+    -56.0,
+    68,
+    0
+   ],
+   "net_vs_stale": [
+    -59,
+    -71.0,
+    -47.0,
+    59,
+    0
+   ],
+   "text_differs_dense": 1.0
+  },
+  "B-stale": {
+   "correct": 66,
+   "net_vs_dense": [
+    -2,
+    -9.0,
+    5.0,
+    8,
+    6
+   ],
+   "net_vs_fresh": [
+    -2,
+    -10.0,
+    6.0,
+    9,
+    7
+   ],
+   "net_vs_stale": [
+    7,
+    -2.0,
+    16.0,
+    8,
+    15
+   ],
+   "text_differs_dense": 0.6829268292682927
+  },
+  "B-rand1": {
+   "correct": 71,
+   "net_vs_dense": [
+    3,
+    -4.0,
+    11.0,
+    6,
+    9
+   ],
+   "net_vs_fresh": [
+    3,
+    -4.0,
+    11.0,
+    6,
+    9
+   ],
+   "net_vs_stale": [
+    12,
+    1.0,
+    23.0,
+    9,
+    21
+   ],
+   "text_differs_dense": 0.6341463414634146
+  }
+ },
+ "contrasts": {
+  "N1 (mean of two seeds) - dense": [
+   2.0,
+   -5.5,
+   9.5
+  ],
+  "N1 (mean of two seeds) - P-fresh": [
+   2.0,
+   -5.5,
+   9.5
+  ],
+  "N1 (mean of two seeds) - P-stale": [
+   11.0,
+   2.0,
+   20.0
+  ],
+  "seed a - seed b (P-rand1)": [
+   4.0,
+   -6.0,
+   14.0
+  ],
+  "B-rand1 - B-stale": [
+   5.0,
+   -5.0,
+   15.0
+  ]
+ },
+ "distance": {
+  "prompt": {
+   "rel_k": 0.09541338527572964,
+   "rel_v": 0.14236514108326304
+  },
+  "prior_written": {
+   "rel_k": 0.12844506153058086,
+   "rel_v": 0.19318434013869326
+  },
+  "inblock_old": {
+   "rel_k": 0.2850529344848589,
+   "rel_v": 0.47470617357919476
+  },
+  "next_blank": {
+   "rel_k": 0.36487317024438154,
+   "rel_v": 0.6473813927313818
+  },
+  "far_blank": {
+   "rel_k": 0.22807306101079236,
+   "rel_v": 0.4047447178354346
+  }
+ }
+}

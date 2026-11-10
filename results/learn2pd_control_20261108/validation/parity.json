@@ -1,0 +1,173 @@
+{
+ "rows": [
+  {
+   "q": "HumanEval/0",
+   "check": "D:C-0.9 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "D:C-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "D:Lctx-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "T:C-0.9 vs D:C-0.9 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "T:Lctx-0.8 vs D:Lctx-0.8 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "T:L2PD-match vs D:L2PD-match up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/0",
+   "check": "T:L2PD-pub vs D:L2PD-pub up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "D:C-0.9 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "D:C-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "D:Lctx-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "T:C-0.9 vs D:C-0.9 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "T:Lctx-0.8 vs D:Lctx-0.8 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "T:L2PD-match vs D:L2PD-match up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "HumanEval/1",
+   "check": "T:L2PD-pub vs D:L2PD-pub up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "D:C-0.9 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "D:C-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "D:Lctx-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "T:C-0.9 vs D:C-0.9 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "T:Lctx-0.8 vs D:Lctx-0.8 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "T:L2PD-match vs D:L2PD-match up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-1",
+   "check": "T:L2PD-pub vs D:L2PD-pub up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:C-0.9 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:C-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "D:Lctx-0.8 vs far-cache campaign dense record",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "T:C-0.9 vs D:C-0.9 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "T:Lctx-0.8 vs D:Lctx-0.8 up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "T:L2PD-match vs D:L2PD-match up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  },
+  {
+   "q": "math500-l5-9",
+   "check": "T:L2PD-pub vs D:L2PD-pub up to the first EOS",
+   "tokens_equal": true,
+   "calls_equal": true
+  }
+ ],
+ "all_match": true
+}

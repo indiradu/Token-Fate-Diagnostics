@@ -1,0 +1,662 @@
+{
+ "C-0.9": {
+  "census": 164,
+  "lost": 17,
+  "divergence": {
+   "lost": {
+    "tasks": 17,
+    "diverged": 17,
+    "kinds": {
+     "b_only": 8,
+     "a_only": 9
+    },
+    "rel_pos_median": 14.0
+   },
+   "retained (all other census tasks)": {
+    "tasks": 147,
+    "diverged": 147,
+    "kinds": {
+     "a_only": 51,
+     "b_only": 92,
+     "token": 4
+    },
+    "rel_pos_median": 12.0
+   }
+  },
+  "repair": {
+   "next_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 6,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 0,
+    "passes": 4
+   },
+   "next_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 6,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 1,
+    "passes": 12
+   },
+   "next_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 6,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "next_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 6,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 1,
+    "passes": 10
+   },
+   "far2_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 4
+   },
+   "far2_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 2,
+    "passes": 8
+   },
+   "far2_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "far2_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 1,
+    "passes": 7
+   },
+   "inblock_old|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 1,
+    "passes": 4
+   },
+   "inblock_old|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 2,
+    "passes": 11
+   },
+   "inblock_old|compute|seg": {
+    "n": 17,
+    "nonempty": 16,
+    "restored": 0,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "inblock_old|compute|end": {
+    "n": 17,
+    "nonempty": 16,
+    "restored": 0,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 6
+   },
+   "prompt|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "prompt|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 1,
+    "passes": 11
+   },
+   "prompt|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 4,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 2
+   },
+   "prompt|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 4,
+    "pos_token": [
+     7,
+     9
+    ],
+    "identical": 0,
+    "passes": 8
+   },
+   "prior_written|oracle|seg": {
+    "n": 17,
+    "nonempty": 1,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 0,
+    "passes": 0
+   },
+   "prior_written|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "prior_written|compute|seg": {
+    "n": 17,
+    "nonempty": 1,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 0,
+    "passes": 0
+   },
+   "prior_written|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     6,
+     9
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "all_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 7,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 0,
+    "passes": 4
+   },
+   "all_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 7,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 3,
+    "passes": 11
+   },
+   "all_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 5,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 0,
+    "passes": 4
+   },
+   "all_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 5,
+    "pos_token": [
+     8,
+     9
+    ],
+    "identical": 3,
+    "passes": 12
+   },
+   "all_cached|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 15,
+    "pos_token": [
+     9,
+     9
+    ],
+    "identical": 1,
+    "passes": 5
+   },
+   "all_cached|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 15,
+    "pos_token": [
+     9,
+     9
+    ],
+    "identical": 13,
+    "passes": 15
+   },
+   "all_cached|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 17,
+    "pos_token": [
+     9,
+     9
+    ],
+    "identical": 1,
+    "passes": 5
+   },
+   "all_cached|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 17,
+    "pos_token": [
+     9,
+     9
+    ],
+    "identical": 17,
+    "passes": 17
+   }
+  }
+ },
+ "Lctx-0.8": {
+  "census": 17,
+  "lost": 17,
+  "divergence": {
+   "lost": {
+    "tasks": 17,
+    "diverged": 17,
+    "kinds": {
+     "b_only": 6,
+     "a_only": 11
+    },
+    "rel_pos_median": 13.0
+   }
+  },
+  "repair": {
+   "next_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 0,
+    "passes": 1
+   },
+   "next_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 2,
+    "passes": 11
+   },
+   "next_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     10,
+     11
+    ],
+    "identical": 0,
+    "passes": 1
+   },
+   "next_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     10,
+     11
+    ],
+    "identical": 1,
+    "passes": 9
+   },
+   "far2_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "far2_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 7
+   },
+   "far2_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 0
+   },
+   "far2_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 6
+   },
+   "inblock_old|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 2
+   },
+   "inblock_old|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 1,
+    "passes": 5
+   },
+   "inblock_old|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 1
+   },
+   "inblock_old|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 1,
+    "passes": 3
+   },
+   "prompt|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 0,
+    "passes": 2
+   },
+   "prompt|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 1,
+    "passes": 6
+   },
+   "prompt|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 2
+   },
+   "prompt|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 1,
+    "passes": 5
+   },
+   "prior_written|oracle|seg": {
+    "n": 17,
+    "nonempty": 1,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 0,
+    "passes": 0
+   },
+   "prior_written|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     8,
+     11
+    ],
+    "identical": 2,
+    "passes": 7
+   },
+   "prior_written|compute|seg": {
+    "n": 17,
+    "nonempty": 1,
+    "restored": 0,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 0,
+    "passes": 1
+   },
+   "prior_written|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 0,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 2,
+    "passes": 10
+   },
+   "all_blank|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 0,
+    "passes": 4
+   },
+   "all_blank|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 1,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 3,
+    "passes": 11
+   },
+   "all_blank|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 0,
+    "passes": 3
+   },
+   "all_blank|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 2,
+    "pos_token": [
+     9,
+     11
+    ],
+    "identical": 1,
+    "passes": 8
+   },
+   "all_cached|oracle|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 15,
+    "pos_token": [
+     11,
+     11
+    ],
+    "identical": 1,
+    "passes": 3
+   },
+   "all_cached|oracle|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 15,
+    "pos_token": [
+     11,
+     11
+    ],
+    "identical": 15,
+    "passes": 16
+   },
+   "all_cached|compute|seg": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 17,
+    "pos_token": [
+     11,
+     11
+    ],
+    "identical": 1,
+    "passes": 3
+   },
+   "all_cached|compute|end": {
+    "n": 17,
+    "nonempty": 17,
+    "restored": 17,
+    "pos_token": [
+     11,
+     11
+    ],
+    "identical": 17,
+    "passes": 17
+   }
+  }
+ }
+}
