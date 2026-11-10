@@ -14,16 +14,24 @@ import torch
 import torch.nn.functional as F
 
 from regret_remasking.llada_trace import EOS_ID, EOT_ID, MASK_ID
+from regret_remasking.freeze_gate import paced_decision
+from regret_remasking.kl_repairs import veto_adjacent_identical
 from regret_remasking.locking_policy import _as_device, _prepare_prompt, _decode_response, _sync_if_cuda
 
 PAPER_ARMS = {
     "B0", "B-entropy", "S-no-lock", "S-dense", "S-sparse", "S-window",
     "W-confidence", "W-entropy", "T-fixed", "T-adaptive", "C-adaptive", "K-adaptive",
-    "C-block",
+    "C-block", "CS-sparse", "LESS", "F-block", "K-block", "X-block", "T-block",
 }
-REFERENCE_ARMS = {"S-no-lock", "S-dense", "S-sparse", "S-window"}
-TRACE_ARMS = {"T-fixed", "T-adaptive"}
-TOKEN_KL_ARMS = {"K-adaptive"}
+REFERENCE_ARMS = {"S-no-lock", "S-dense", "S-sparse", "S-window", "CS-sparse"}
+# Sparse arms whose frozen rows are skipped; CS-sparse writes like C-block and freezes like S-sparse.
+SPARSE_COMPACT_ARMS = {"S-no-lock", "S-sparse", "S-window", "CS-sparse"}
+LEARNED_GATE_ARMS = {"S-sparse", "CS-sparse"}
+# T-block: TraceLock's controller and cutoff over the fixed 32-block (not in WINDOW_ARMS): the dense twin of the selective-cache engine's lock="trace" (shape block)
+TRACE_ARMS = {"T-fixed", "T-adaptive", "T-block"}
+# K-adaptive: KL word commit on the sliding window (Pass 7). K-block: the same rule inside fixed blocks (not in WINDOW_ARMS).
+TOKEN_KL_ARMS = {"K-adaptive", "K-block"}
+FREEZE_RULES = {"kl", "none", "fix_prompt", "fix_block", "fix_both", "fast_prefix"}
 WINDOW_ARMS = {"W-confidence", "W-entropy", "S-window", "T-fixed", "T-adaptive", "C-adaptive", "K-adaptive"}
 
 
@@ -38,11 +46,69 @@ class PaperDecodeConfig:
     threshold: float = 0.95
     freeze_scope: str = "generated"
     allow_newly_unmasked: bool = False
+    # True lets EOS/EOT rows be freeze candidates (the paper's active set and the collaborator's code include padding rows).
+    freeze_eos_eot: bool = False
+    # "kl": SureLock-style fixed rule (epsilon + confidence percentile). "learned": a LearnedFreezeGate decides for answer
+    # rows; prompt rows (freeze_scope="all_unmasked") still use the fixed rule. The gate carries its own threshold.
+    freeze_gate: str = "kl"
+    # Confidence pacing of the learned gate's answer-row decision (default off). "intersect": also require SureLock's per-call
+    # top-20%-confident test (same candidate pool as the fixed rule; needs confidence_percentile < 100). "rank": only the top
+    # `pacing_percent` percent of this call's answer candidates (age >= gate min age) by gate logit may freeze.
+    learned_pacing: str = "none"
+    pacing_percent: float = 20.0
+    # Which rows a learned gate decides (default "answer": the answer gate decides answer rows, prompt rows keep the fixed rule).
+    # "both": the answer gate (freeze_gate="learned") decides answer rows and the `prompt_gate` argument decides prompt rows.
+    # "prompt": the `prompt_gate` decides prompt rows; answer rows follow the fixed rule (freeze_gate="kl") or never freeze
+    # (freeze_answer_rows=False). Needs freeze_scope="all_unmasked". A learned prompt decision does not require KL or the percentile test.
+    learned_rows: str = "answer"
+    # False: answer rows are never freeze candidates (only prompt rows can freeze; needs freeze_scope="all_unmasked"). The percentile
+    # pool of the fixed rule is unchanged (answer candidates still count in it); they are only vetoed.
+    freeze_answer_rows: bool = True
     kl_negative_tolerance: float = 2e-6
     kl_space: str = "token"
     representation_temperature: float = 1.0
     mask_id: int = MASK_ID
     runtime_cls: Any | None = None
+    # Arm "LESS" only: a less_sampling.LessConfig (None = the released defaults c=0.75, d=0.04, top-8, two stored winners).
+    less_config: Any | None = None
+    # Arm "F-block" only: Fast-dLLM's dynamic factor rule (factor_rule.py); the n-th most confident blank of the block is written only
+    # while (n + 1) * (1 - c_n) <= factor.
+    factor: float = 1.0
+    # Per-call write log (default off): "writes" keeps the written positions per call; "blanks" also keeps every eligible blank's
+    # position, confidence, proposed token and (token-KL arms) KL, for the clash analysis. Positions are relative to the answer start.
+    log_calls: str = "none"
+    # Arm "K-block" only; three default-off repairs of the KL word commit (all default to the plain K-block rule).
+    # confidence_floor: a blank qualifies only if its mask-suppressed confidence is >= the floor (0 = no floor).
+    # persist_calls: a blank qualifies only if its top-1 proposal now equals its proposal at each of the previous `persist_calls` calls
+    #   (all inside the current block; the per-position history is reset whenever the block changes; 0 = off).
+    # veto_adjacent: inside each call drop the lower-confidence member of any adjacent pair of selected slots that propose the same
+    #   non-padding token (kl_repairs.veto_adjacent_identical). The single-most-confident fallback is unchanged.
+    confidence_floor: float = 0.0
+    persist_calls: int = 0
+    veto_adjacent: bool = False
+    # Arm "X-block" only: a context_rules.ContextRule. A blank of the current fixed block is written iff its rule score >= rule.lam (fallback: the best-scoring
+    # blank). rule kind "conf" with lam = c reproduces C-block at threshold c. Word lock only: nothing is frozen.
+    block_rule: Any | None = None
+    # Representation-freeze rule (default "kl": the SureLock-style rule / learned gates above, unchanged). Fixed rules, no learning, for the
+    # sparse arm CS-sparse with freeze_scope="all_unmasked" and freeze_gate="kl" (results/repfreeze_tests_20261029); they REPLACE the KL/percentile
+    # test (no vocabulary KL is computed). "fix_prompt": every non-EOS/EOT prompt row freezes after call 0 (decision at step 0, effective call 1).
+    # "fix_block": an answer row freezes at call t iff it was written in call t's input and its block has no blank left after call t's writes.
+    # "fix_both": both. Candidate rule as for every freeze: EOS/EOT rows never freeze; allow_newly_unmasked is not used.
+    freeze_rule: str = "kl"
+    # Diagnostics (default off). sync_gate_timer: torch.cuda.synchronize() around the learned-gate segments so gate_time_s is GPU-inclusive.
+    # force_hidden_output: request all hidden states even when no gate needs them (to measure the cost of output_hidden_states=True).
+    sync_gate_timer: bool = False
+    force_hidden_output: bool = False
+    # freeze_rule="none": the sparse runtime with nothing ever frozen (timing control; tokens equal the dense Conf-0.9 decode).
+    # freeze_rule="fast_prefix": Fast-dLLM v1's prefix cache with refresh. At the first call of every block every frozen row is thawed (that call is a
+    # dense full-recompute pass and also the block's first decoding step); at its end (effective next call) all non-EOS/EOT prompt rows and all answer
+    # rows before the block freeze. The current block and later blocks stay live. Block 0 = fix_prompt. Needs a runtime with thaw().
+    # log_frozen (default off): per call, the number of (answer, prompt) rows frozen at the call's input -> result.frozen_by_call.
+    log_frozen: bool = False
+    # fast_prefix only: refresh every k-th block (default 1 = every block, Fast-dLLM's schedule). A block b is a refresh block iff b % k == 0 (block 0 always);
+    # there the behaviour is the k=1 behaviour. At a non-refresh block's first call nothing is thawed (sparse pass); at its end the rows of block b-1 freeze
+    # (K/V from that sparse pass) while earlier frozen rows keep their old K/V. log_frozen also logs active_by_call.
+    refresh_every_blocks: int = 1
 
 
 @dataclass
@@ -73,6 +139,11 @@ class PaperDecodeResult:
     controller_calls: int = 0
     gate_time_s: float = 0.0
     scorer_time_s: float = 0.0
+    gate_sha256: str | None = None
+    gate_threshold: float | None = None
+    gate_min_age: int | None = None
+    prompt_gate_sha256: str | None = None
+    prompt_gate_threshold: float | None = None
     recording_mode: str = "timed_minimal"
     generated_row_updates_avoided_basis: str = "reference_freeze_coverage"
     policy_subtimers: str = "diagnostic_wall_clock"
@@ -81,11 +152,20 @@ class PaperDecodeResult:
     representation_temperature: float = 1.0
     representation_layer: str | None = None
     representation_feature_dim: int | None = None
+    call_log: list[dict[str, Any]] = field(default_factory=list)
+    refresh_calls: int = 0
+    frozen_by_call: list[tuple[int, int]] = field(default_factory=list)
+    refresh_steps: list[int] = field(default_factory=list)
+    active_by_call: list[tuple[int, int, int, int]] = field(default_factory=list)
 
 
 def _validate(config: PaperDecodeConfig) -> None:
     if config.arm not in PAPER_ARMS:
         raise ValueError(f"unknown paper arm: {config.arm}")
+    if not math.isfinite(config.factor) or config.factor <= 0:
+        raise ValueError("factor must be finite and positive")
+    if config.log_calls not in {"none", "writes", "blanks"}:
+        raise ValueError("log_calls must be none, writes or blanks")
     if config.gen_length < 1 or config.block_length < 1 or config.window_length < 1:
         raise ValueError("generation/block/window lengths must be positive")
     if config.gen_length % config.block_length:
@@ -100,10 +180,63 @@ def _validate(config: PaperDecodeConfig) -> None:
         raise ValueError("threshold must lie in [0,1]")
     if config.kl_space not in {"token", "representation"}:
         raise ValueError("kl_space must be token or representation")
+    if config.freeze_gate not in {"kl", "learned"}:
+        raise ValueError("freeze_gate must be kl or learned")
+    if int(config.refresh_every_blocks) != config.refresh_every_blocks or config.refresh_every_blocks < 1:
+        raise ValueError("refresh_every_blocks must be a positive integer")
+    if config.refresh_every_blocks != 1 and config.freeze_rule != "fast_prefix":
+        raise ValueError("refresh_every_blocks != 1 needs freeze_rule='fast_prefix'")
+    if config.freeze_rule not in FREEZE_RULES:
+        raise ValueError(f"freeze_rule must be one of {sorted(FREEZE_RULES)}")
+    if config.freeze_rule != "kl":
+        if config.arm not in {"CS-sparse", "X-block"} or config.freeze_scope != "all_unmasked":
+            raise ValueError("a fixed freeze_rule needs arm='CS-sparse' (or 'X-block': context-rule word lock) and freeze_scope='all_unmasked'")
+        if config.freeze_gate != "kl" or config.learned_rows != "answer" or not config.freeze_answer_rows or config.learned_pacing != "none":
+            raise ValueError("a fixed freeze_rule conflicts with learned gates, learned_rows, freeze_answer_rows=False and pacing")
+    if config.learned_pacing not in {"none", "intersect", "rank"}:
+        raise ValueError("learned_pacing must be none, intersect or rank")
+    if config.learned_pacing != "none" and config.freeze_gate != "learned":
+        raise ValueError("learned_pacing needs freeze_gate='learned'")
+    if config.learned_pacing == "intersect" and not config.confidence_percentile < 100.0:
+        raise ValueError("intersect pacing needs confidence_percentile < 100")
+    if not 0 < config.pacing_percent <= 100:
+        raise ValueError("pacing_percent must lie in (0,100]")
+    if config.learned_rows not in {"answer", "both", "prompt"}:
+        raise ValueError("learned_rows must be answer, both or prompt")
+    if config.learned_rows != "answer":
+        if config.freeze_scope != "all_unmasked":
+            raise ValueError("learned_rows other than answer needs freeze_scope='all_unmasked'")
+        if config.arm not in LEARNED_GATE_ARMS or config.kl_space != "token":
+            raise ValueError("a learned prompt gate needs a sparse confidence/one-word arm with token-space KL")
+        if config.learned_rows == "both" and config.freeze_gate != "learned":
+            raise ValueError("learned_rows='both' needs freeze_gate='learned' (the answer gate)")
+        if config.learned_rows == "prompt" and config.freeze_gate == "learned":
+            raise ValueError("learned_rows='prompt' needs freeze_gate='kl'; use 'both' for a learned answer gate")
+    if not config.freeze_answer_rows:
+        if config.freeze_scope != "all_unmasked":
+            raise ValueError("freeze_answer_rows=False needs freeze_scope='all_unmasked' (otherwise nothing could freeze)")
+        if config.freeze_gate == "learned":
+            raise ValueError("freeze_answer_rows=False conflicts with a learned answer gate")
+        if config.learned_pacing != "none":
+            raise ValueError("freeze_answer_rows=False conflicts with learned_pacing")
+    if config.freeze_gate == "learned" and config.arm not in LEARNED_GATE_ARMS:
+        raise ValueError("a learned freeze gate needs a sparse arm that writes by confidence order or threshold")
+    if config.freeze_gate == "learned" and config.kl_space != "token":
+        raise ValueError("a learned freeze gate needs token-space KL for its vocabulary signal")
     if config.arm in TOKEN_KL_ARMS and config.kl_space != "token":
         raise ValueError("token-KL commitment arms only support token kl_space")
+    if not math.isfinite(config.confidence_floor) or not 0 <= config.confidence_floor <= 1:
+        raise ValueError("confidence_floor must lie in [0,1]")
+    if config.persist_calls < 0 or int(config.persist_calls) != config.persist_calls:
+        raise ValueError("persist_calls must be a nonnegative integer")
+    if (config.confidence_floor > 0 or config.persist_calls > 0 or config.veto_adjacent) and config.arm != "K-block":
+        raise ValueError("confidence_floor / persist_calls / veto_adjacent are repairs of the K-block arm only")
     if not math.isfinite(config.representation_temperature) or config.representation_temperature <= 0:
         raise ValueError("representation_temperature must be finite and positive")
+    if (config.arm == "X-block") != (config.block_rule is not None):
+        raise ValueError("block_rule is required by, and only allowed for, the X-block arm")
+    if getattr(config.block_rule, "needs_block_vector", False) and config.freeze_rule != "kl":
+        raise ValueError("a block-vector word lock (Learn2PD) runs on the dense path only: freeze_rule must stay 'kl'")
 
 
 def _stability_logp(token_logp: torch.Tensor, hidden: torch.Tensor | None, config: PaperDecodeConfig) -> torch.Tensor:
@@ -149,12 +282,20 @@ def decode_paper_policy(
     *,
     controller: torch.nn.Module | None = None,
     projector: torch.nn.Module | None = None,
+    gate: Any | None = None,
+    prompt_gate: Any | None = None,
     collect_events: bool = False,
     step_observer: Callable[[dict[str, Any]], None] | None = None,
 ) -> PaperDecodeResult:
     _validate(config)
     if config.arm in TRACE_ARMS and (controller is None or projector is None):
         raise ValueError("hidden commitment requires a trained controller and projector")
+    learned = config.freeze_gate == "learned"
+    prompt_learned = config.learned_rows in {"both", "prompt"}
+    if learned and gate is None:
+        raise ValueError("freeze_gate='learned' requires a gate")
+    if prompt_learned and prompt_gate is None:
+        raise ValueError("learned_rows='both'/'prompt' requires a prompt_gate")
     model.eval()
     if controller is not None:
         controller.eval()
@@ -172,26 +313,46 @@ def decode_paper_policy(
     x[:, :prompt_length] = prompt_ids
     attention = torch.cat([prompt_attention, torch.ones((1, config.gen_length), device=device, dtype=prompt_attention.dtype)], dim=1)
     committed = torch.full_like(x, -1)
+    write_step = torch.full((length,), -1, dtype=torch.long, device=device)
+    if learned:
+        gate.reset(length, device)
+    if prompt_learned:
+        prompt_gate.reset(length, device)
     frozen: set[int] = set()
     all_positions = torch.arange(length, device=device)
     prev_gate_logp: torch.Tensor | None = None
     prev_positions: torch.Tensor | None = None
     prev_decision_logp: torch.Tensor | None = None
     prev_decision_positions: torch.Tensor | None = None
+    # K-block persistence repair: proposals of the previous `persist_calls` calls per absolute position (-1 = none), newest first.
+    persist_history = (torch.full((config.persist_calls, length), -1, dtype=torch.long, device=device)
+                       if config.persist_calls > 0 else None)
+    persist_block_left: int | None = None
+    last_block_left: int | None = None
+    refresh_calls = 0
+    refresh_steps: list[int] = []
+    active_by_call: list[tuple[int, int, int, int]] = []
+    frozen_by_call: list[tuple[int, int]] = []
     events: list[dict[str, Any]] = []
+    call_log: list[dict[str, Any]] = []
     nfe = query_rows = projection_rows = ffn_rows = head_rows = avoided = 0
     mask_rejected = neg_kl = zero_kl = fallbacks = adaptive_count = controller_calls = 0
     min_kl: float | None = None
     scorer_seconds = gate_seconds = 0.0
     representation_feature_dim: int | None = None
     runtime = None
-    if config.arm in REFERENCE_ARMS:
+    if config.arm == "LESS":
+        from regret_remasking.less_arm import LessBlockSelector
+        less_selector = LessBlockSelector(length, device, config.less_config)
+    # X-block (context-rule word lock) runs the dense path unless a freeze_rule other than "kl" asks for the sparse runtime (word lock x representation freeze)
+    if config.arm in REFERENCE_ARMS or (config.arm == "X-block" and config.freeze_rule != "kl"):
         if config.runtime_cls is None:
             from regret_remasking.paper_reference import PaperReferenceRuntime
             runtime_cls = PaperReferenceRuntime
         else:
             runtime_cls = config.runtime_cls
         runtime = runtime_cls(model, mode="dense" if config.arm == "S-dense" else "sparse", total_len=length, capture_diagnostics=False)
+    sparse_layout = config.arm in SPARSE_COMPACT_ARMS or (config.arm == "X-block" and runtime is not None)
     try:
         if runtime is not None:
             runtime.install()
@@ -207,9 +368,26 @@ def decode_paper_policy(
                 left = prompt_length + block * config.block_length
                 right = left + config.block_length
             eligible = remaining[(remaining >= left) & (remaining < right)]
+            first_call = step == 0 or left != last_block_left
+            refresh = (config.freeze_rule == "fast_prefix" and first_call
+                       and ((left - prompt_length) // config.block_length) % config.refresh_every_blocks == 0)
+            carry = config.freeze_rule == "fast_prefix" and first_call and not refresh   # non-refresh block start
+            if refresh:
+                refresh_calls += 1
+                refresh_steps.append(step)
+                if frozen:
+                    runtime.thaw()
+                    frozen.clear()
+            last_block_left = left
             frozen_generated = sum(p >= prompt_length for p in frozen)
             avoided += frozen_generated
-            needs_hidden = config.arm in TRACE_ARMS or step_observer is not None
+            if config.log_frozen:
+                frozen_by_call.append((frozen_generated, len(frozen) - frozen_generated))
+                active_by_call.append((right - left, length - right, length - len(frozen) - (right - left) - (length - right), int(refresh)))
+            needs_hidden = (config.arm in TRACE_ARMS or step_observer is not None or learned or prompt_learned
+                            or config.force_hidden_output)
+            # share of answer slots written when this call starts (EOS/EOT slots count as written): the value the recorder logs from the call's input
+            progress_now = 1.0 - remaining.numel() / config.gen_length
             if runtime is not None and hasattr(runtime, "begin_forward"):
                 runtime.begin_forward()
             kwargs: dict[str, Any] = {"attention_mask": attention}
@@ -225,7 +403,7 @@ def decode_paper_policy(
             if runtime is not None:
                 work = runtime.last_work_counts
                 layer_count = len(runtime.blocks)
-                expected_rows = active_count if config.arm in {"S-sparse", "S-no-lock", "S-window"} else length
+                expected_rows = active_count if sparse_layout else length
                 for name in ["attention_query_rows", "projection_rows", "ffn_rows"]:
                     if work[name] != expected_rows * layer_count:
                         raise AssertionError(f"actual {name} differs from the intended backend work")
@@ -247,6 +425,8 @@ def decode_paper_policy(
                 observed = positions if config.freeze_scope == "all_unmasked" else positions[positions >= prompt_length]
             elif step_observer is not None:
                 observed = all_positions
+            elif config.arm == "X-block" and getattr(config.block_rule, "needs_block_vector", False):
+                observed = all_positions[left:right]      # Learn2PD filter: the confidence of every slot of the block, written ones included
             else:
                 observed = eligible
             gather = torch.searchsorted(positions, observed)
@@ -277,7 +457,7 @@ def decode_paper_policy(
                     representation_feature_dim = int(hidden.shape[-1])
                 gate_logp = _stability_logp(logp, hidden, config)
             raw_kl = kl = None
-            if runtime is not None and prev_gate_logp is not None:
+            if runtime is not None and prev_gate_logp is not None and config.freeze_rule == "kl":
                 assert gate_logp is not None
                 if prev_positions is None:
                     raise AssertionError("missing stability history positions")
@@ -340,26 +520,68 @@ def decode_paper_policy(
                 controller_calls += 1
 
             fallback = False
-            if config.arm == "T-adaptive":
+            if persist_history is not None and persist_block_left != left:
+                persist_history.fill_(-1)
+                persist_block_left = left
+            if config.arm in {"T-adaptive", "T-block"}:
                 assert trace_scores is not None
                 accept = trace_scores > config.threshold
                 selected = eligible[accept]
                 if selected.numel() == 0:
                     selected = _argmax_stable(trace_scores, eligible)
                     fallback = True
-            elif config.arm in {"C-adaptive", "C-block"}:
+            elif config.arm in {"C-adaptive", "C-block", "CS-sparse"}:
                 # C-block is Fast-dLLM-style threshold decoding inside the fixed block.
                 selected = eligible[eligible_conf >= config.threshold]
                 if selected.numel() == 0:
                     selected = _argmax_stable(eligible_conf, eligible)
                     fallback = True
-            elif config.arm == "K-adaptive":
+            elif config.arm == "X-block" and getattr(config.block_rule, "needs_block_vector", False):
+                # Learn2PD (l2pd_rule.Learn2PDRule): filter over the block's 32 confidences, every call also writes the most confident blank. `observed` is the block, in order.
+                score_start = time.perf_counter()
+                keep = config.block_rule.accept_mask(confidence[0], eligible - left)
+                selected = eligible[keep]
+                fallback = config.block_rule.last_empty        # the filter accepted no blank: only the forced most-confident blank is written
+                scorer_seconds += time.perf_counter() - score_start
+            elif config.arm == "X-block":
+                from regret_remasking.context_rules import block_features
+                score_start = time.perf_counter()
+                feats = block_features(x, prompt_length, eligible, eligible_conf, logp[0].index_select(0, eligible_index),
+                                       config.mask_id, config.block_length, config.gen_length)
+                rule_scores = config.block_rule.scores(feats)
+                accept = torch.as_tensor(rule_scores >= config.block_rule.lam, device=device)
+                selected = eligible[accept]
+                if selected.numel() == 0:
+                    selected = _argmax_stable(torch.as_tensor(rule_scores, device=device, dtype=torch.float32), eligible)
+                    fallback = True
+                scorer_seconds += time.perf_counter() - score_start
+            elif config.arm == "LESS":
+                # Released-code LESS: persistence + confidence + top-8 JSD per blank; all accepted commit, else the most-confident blank.
+                selected, fallback = less_selector.select(
+                    logp if observed is eligible else logp.index_select(1, eligible_index), eligible, left, right)
+            elif config.arm == "F-block":
+                from regret_remasking.factor_rule import factor_select
+                keep, count = factor_select(eligible_conf, config.factor)
+                selected = eligible.index_select(0, keep)
+                fallback = count == 1
+            elif config.arm in TOKEN_KL_ARMS:
                 assert decision_had_history is not None
                 if decision_kl is None:
                     selected = _argmax_stable(eligible_conf, eligible)
                     fallback = True
                 else:
-                    selected = eligible[decision_had_history & (decision_kl <= config.epsilon)]
+                    qualifies = decision_had_history & (decision_kl <= config.epsilon)
+                    if config.confidence_floor > 0:
+                        qualifies = qualifies & (eligible_conf >= config.confidence_floor)
+                    if persist_history is not None:
+                        qualifies = qualifies & (persist_history.index_select(1, eligible) == eligible_tokens.unsqueeze(0)).all(dim=0)
+                    selected = eligible[qualifies]
+                    if config.veto_adjacent and selected.numel() > 1:
+                        sel_pos = selected.tolist()
+                        sel_index = torch.searchsorted(eligible, selected)
+                        keep = veto_adjacent_identical(sel_pos, eligible_tokens.index_select(0, sel_index).tolist(),
+                                                       eligible_conf.index_select(0, sel_index).tolist(), exempt=(EOS_ID, EOT_ID))
+                        selected = selected[torch.tensor(keep, dtype=torch.long, device=device)]
                     if selected.numel() == 0:
                         selected = _argmax_stable(eligible_conf, eligible)
                         fallback = True
@@ -382,22 +604,36 @@ def decode_paper_policy(
                     "confidence": confidence.detach(), "last_hidden": _last_hidden(output),
                     "selected_positions": selected.detach(),
                 })
+            if persist_history is not None:
+                persist_history[1:, eligible] = persist_history[:-1, eligible].clone()
+                persist_history[0, eligible] = eligible_tokens
             token_index = torch.searchsorted(eligible, selected)
             chosen_tokens = eligible_tokens.index_select(0, token_index)
             if bool((committed[0, selected] >= 0).any()):
                 raise AssertionError("selected an already committed token")
             x[0, selected] = chosen_tokens
             committed[0, selected] = chosen_tokens
-            if config.arm in {"T-adaptive", "C-adaptive", "C-block"}:
+            write_step[selected] = step
+            if config.log_calls != "none":
+                entry: dict[str, Any] = {"step": step, "w": (selected - prompt_length).tolist(), "fb": bool(fallback),
+                                         "nb": int(eligible.numel())}
+                if config.log_calls == "blanks":
+                    entry["pos"] = (eligible - prompt_length).tolist()
+                    entry["conf"] = [round(v, 6) for v in eligible_conf.tolist()]
+                    entry["tok"] = eligible_tokens.tolist()
+                    entry["kl"] = None if decision_kl is None else [
+                        float(f"{v:.6g}") if math.isfinite(v) else None for v in decision_kl.tolist()]
+                call_log.append(entry)
+            if config.arm in {"T-adaptive", "T-block", "C-adaptive", "C-block", "CS-sparse", "LESS", "F-block", "X-block"}:
                 adaptive_count += int(selected.numel())
-            if config.arm == "K-adaptive":
+            if config.arm in TOKEN_KL_ARMS:
                 adaptive_count += int(selected.numel())
             fallbacks += int(fallback)
             if collect_events:
                 for pos, token in zip(selected.tolist(), chosen_tokens.tolist()):
                     event = {"type": "token_commit", "global_step": step, "position": pos,
                              "relative_position": pos - prompt_length, "token": token, "fallback": fallback}
-                    if config.arm == "K-adaptive":
+                    if config.arm in TOKEN_KL_ARMS:
                         assert decision_had_history is not None
                         selected_index = int(torch.searchsorted(eligible, torch.tensor(pos, device=device)).item())
                         event["had_immediate_history"] = bool(decision_had_history[selected_index])
@@ -406,19 +642,126 @@ def decode_paper_policy(
                             else float(decision_kl[selected_index])
                         )
                     events.append(event)
-            if runtime is not None and kl is not None and config.arm != "S-no-lock":
+            gate_rows = gate_rc = row_of = None
+            p_rows = p_rc = p_row_of = None
+            gate_info: dict[int, tuple[float, int]] = {}
+            if (learned or prompt_learned) and runtime is not None:
+                if config.sync_gate_timer:
+                    _sync_if_cuda(device)
+                gate_start = time.perf_counter()
+                hidden3 = _last_hidden(output)
+                gen_pos = observed[observed >= prompt_length]
+                if learned and gen_pos.numel():
+                    gate_rows, gate_rc = gate.observe(hidden3, gen_pos)
+                    row_of = torch.full((length,), -1, dtype=torch.long, device=device)
+                    row_of[gen_pos] = torch.arange(gen_pos.numel(), device=device)
+                prompt_pos = observed[observed < prompt_length]
+                if prompt_learned and prompt_pos.numel():
+                    p_rows, p_rc = prompt_gate.observe(hidden3, prompt_pos)
+                    p_row_of = torch.full((length,), -1, dtype=torch.long, device=device)
+                    p_row_of[prompt_pos] = torch.arange(prompt_pos.numel(), device=device)
+                if config.sync_gate_timer:
+                    _sync_if_cuda(device)
+                gate_seconds += time.perf_counter() - gate_start
+            if runtime is not None and config.freeze_rule not in ("kl", "none"):
+                gate_start = time.perf_counter()
+                revealed = ~current_mask[0]
+                if not config.freeze_eos_eot:
+                    revealed &= (x[0].index_select(0, observed) != EOS_ID) & (x[0].index_select(0, observed) != EOT_ID)
+                cand_pos = observed.index_select(0, torch.nonzero(revealed, as_tuple=False).flatten())
+                chosen = torch.zeros_like(cand_pos, dtype=torch.bool)
+                if config.freeze_rule in {"fix_prompt", "fix_both"} and step == 0:
+                    chosen |= cand_pos < prompt_length
+                if config.freeze_rule in {"fix_block", "fix_both"}:
+                    blanks = (x[0, prompt_length:] == config.mask_id).view(-1, config.block_length).any(dim=1)  # per block, after this call's writes
+                    block_of = ((cand_pos - prompt_length).clamp_min(0)) // config.block_length
+                    chosen |= (cand_pos >= prompt_length) & ~blanks.index_select(0, block_of)
+                if carry:
+                    chosen |= (cand_pos >= left - config.block_length) & (cand_pos < left)   # rows of the block that just finished
+                if refresh:
+                    chosen |= cand_pos < left       # fast_prefix: prompt rows and every answer row of an earlier block (all already written)
+                to_freeze = [q for q in cand_pos[chosen].tolist() if q not in frozen]   # the real runtime never observes frozen rows; belt and braces
+                if to_freeze:
+                    runtime.commit(to_freeze)
+                    frozen.update(to_freeze)
+                    if collect_events:
+                        for pos in to_freeze:
+                            events.append({"type": "reference_freeze", "global_step": step, "position": pos, "relative_position": pos - prompt_length,
+                                           "kl": None, "kl_space": config.kl_space, "effective_from_step": step + 1, "input_was_masked": False,
+                                           "rule": config.freeze_rule})
+                gate_seconds += time.perf_counter() - gate_start
+            elif runtime is not None and kl is not None and config.arm != "S-no-lock" and config.freeze_rule == "kl":
+                if config.sync_gate_timer:
+                    _sync_if_cuda(device)
                 gate_start = time.perf_counter()
                 # Primary snapshots must have been computed with the revealed token
                 # already present. The paper-order ablation admits just-revealed rows.
                 revealed = (x[0].index_select(0, observed) != config.mask_id) if config.allow_newly_unmasked else ~current_mask[0]
-                revealed &= (x[0].index_select(0, observed) != EOS_ID) & (x[0].index_select(0, observed) != EOT_ID)
+                if not config.freeze_eos_eot:
+                    revealed &= (x[0].index_select(0, observed) != EOS_ID) & (x[0].index_select(0, observed) != EOT_ID)
                 candidate = torch.nonzero(revealed, as_tuple=False).flatten()
                 if candidate.numel():
                     passes = kl[0].index_select(0, candidate) <= config.epsilon
+                    conf_pass = None
                     if config.confidence_percentile < 100.0:
                         uncertainty = 1 - confidence[0].index_select(0, candidate)
                         cutoff = torch.quantile(uncertainty, config.confidence_percentile / 100.0)
-                        passes &= uncertainty <= cutoff
+                        conf_pass = uncertainty <= cutoff
+                        passes &= conf_pass
+                    if learned and gate_rows is not None:
+                        cand_pos = observed.index_select(0, candidate)
+                        is_gen = cand_pos >= prompt_length
+                        if bool(is_gen.any()):
+                            ci, pos_g = candidate[is_gen], cand_pos[is_gen]
+                            rows = row_of.index_select(0, pos_g)
+                            tok_g = x[0].index_select(0, pos_g)
+                            lp = logp[0].index_select(0, ci)
+                            age_g = step - write_step.index_select(0, pos_g)
+                            gate_args = (
+                                gate_rows.index_select(0, rows), gate_rc.index_select(0, rows), kl[0].index_select(0, ci),
+                                lp.gather(-1, tok_g[:, None])[:, 0].exp(), -(lp.exp() * lp).sum(-1),
+                                proposed[0].index_select(0, ci) == tok_g, age_g)
+                            gate_kw = {"progress": torch.full_like(age_g, progress_now, dtype=torch.float32)}
+                            if config.learned_pacing == "rank":
+                                scores, gate_logit = gate.score(*gate_args, return_logit=True, **gate_kw)
+                            else:
+                                scores, gate_logit = gate.score(*gate_args, **gate_kw), None
+                            ok = gate.decide(scores, age_g)
+                            if config.learned_pacing != "none":
+                                ok = paced_decision(ok, config.learned_pacing,
+                                                    conf_pass=None if conf_pass is None else conf_pass[is_gen],
+                                                    logit=gate_logit, age=age_g, min_age=gate.min_age,
+                                                    top_percent=config.pacing_percent)
+                            passes = passes.clone()
+                            passes[is_gen] = ok
+                            if collect_events:
+                                for q, sc, ag in zip(pos_g.tolist(), scores.tolist(), age_g.tolist()):
+                                    gate_info[q] = (sc, ag)
+                                events.append({"type": "gate_scores", "global_step": step, "positions": pos_g.tolist(),
+                                               "scores": scores.tolist(), "ages": age_g.tolist()})
+                    if not config.freeze_answer_rows:
+                        passes = passes & (observed.index_select(0, candidate) < prompt_length)
+                    if prompt_learned and p_rows is not None:
+                        cand_pos = observed.index_select(0, candidate)
+                        is_q = cand_pos < prompt_length
+                        if bool(is_q.any()):
+                            ci, pos_q = candidate[is_q], cand_pos[is_q]
+                            rows_q = p_row_of.index_select(0, pos_q)
+                            tok_q = x[0].index_select(0, pos_q)
+                            lp = logp[0].index_select(0, ci)
+                            age_q = step - write_step.index_select(0, pos_q)
+                            scores_q = prompt_gate.score(
+                                p_rows.index_select(0, rows_q), p_rc.index_select(0, rows_q), kl[0].index_select(0, ci),
+                                lp.gather(-1, tok_q[:, None])[:, 0].exp(), -(lp.exp() * lp).sum(-1),
+                                proposed[0].index_select(0, ci) == tok_q, age_q,
+                                progress=torch.full_like(age_q, progress_now, dtype=torch.float32))
+                            passes = passes.clone()
+                            passes[is_q] = prompt_gate.decide(scores_q, age_q)
+                            if collect_events:
+                                for q, sc, ag in zip(pos_q.tolist(), scores_q.tolist(), age_q.tolist()):
+                                    gate_info[q] = (sc, ag)
+                                events.append({"type": "gate_scores", "global_step": step, "positions": pos_q.tolist(),
+                                               "scores": scores_q.tolist(), "ages": age_q.tolist(), "row_type": "prompt"})
                     accepted = candidate[passes]
                     to_freeze = observed.index_select(0, accepted).tolist()
                     if to_freeze:
@@ -430,7 +773,10 @@ def decode_paper_policy(
                                                "relative_position": pos-prompt_length, "kl": float(kl[0, idx]),
                                                "kl_space": config.kl_space,
                                                "representation_temperature": config.representation_temperature,
-                                               "effective_from_step": step+1, "input_was_masked": bool(current_mask[0, idx])})
+                                               "effective_from_step": step+1, "input_was_masked": bool(current_mask[0, idx]),
+                                               **({"gate_score": gate_info[pos][0], "age": gate_info[pos][1]} if pos in gate_info else {})})
+                if config.sync_gate_timer:
+                    _sync_if_cuda(device)
                 gate_seconds += time.perf_counter() - gate_start
             if runtime is not None:
                 assert gate_logp is not None
@@ -460,14 +806,20 @@ def decode_paper_policy(
         frozen_count=sum(p>=prompt_length for p in frozen), frozen_prompt_count=sum(p<prompt_length for p in frozen),
         generated_row_updates_avoided=avoided, total_query_rows=query_rows, total_projection_rows=projection_rows,
         total_ffn_rows=ffn_rows,total_output_head_rows=head_rows,
-        attention_layout="compact" if config.arm in {"S-no-lock","S-sparse","S-window"} else "full",
+        attention_layout="compact" if sparse_layout else "full",
         events=events, mask_proposals_rejected=mask_rejected,raw_kl_min=min_kl,
         raw_kl_negative_count=neg_kl,raw_kl_exact_zero_count=zero_kl,
         fallback_count=fallbacks,adaptive_accept_count=adaptive_count,controller_calls=controller_calls,
         gate_time_s=gate_seconds,scorer_time_s=scorer_seconds,
+        gate_sha256=getattr(gate, "sha256", None) if learned else None,
+        gate_threshold=getattr(gate, "threshold", None) if learned else None,
+        gate_min_age=getattr(gate, "min_age", None) if learned else None,
+        prompt_gate_sha256=getattr(prompt_gate, "sha256", None) if prompt_learned else None,
+        prompt_gate_threshold=getattr(prompt_gate, "threshold", None) if prompt_learned else None,
         recording_mode="observer" if step_observer is not None else ("events" if collect_events else "timed_minimal"),
         generated_row_updates_avoided_basis="reference_freeze_coverage" if runtime is not None else "none",
+        refresh_calls=refresh_calls, refresh_steps=refresh_steps, frozen_by_call=frozen_by_call, active_by_call=active_by_call,
         kl_space=config.kl_space, representation_temperature=config.representation_temperature,
         representation_layer="final_normalized_pre_vocab" if representation_feature_dim is not None else None,
-        representation_feature_dim=representation_feature_dim,
+        representation_feature_dim=representation_feature_dim, call_log=call_log,
     )

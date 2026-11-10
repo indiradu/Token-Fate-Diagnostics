@@ -278,6 +278,18 @@ class PaperReferenceRuntime:
         self._active_count = int(self.active_positions.numel())
         self._has_locks = self._locked_count > 0
 
+    def thaw(self) -> None:
+        """Unfreeze every row (Fast-dLLM-style cache refresh): the next forward is a dense full-recompute pass. Stored frozen tensors are kept
+        but never read until the next commit() overwrites the committed positions."""
+
+        self.locked.zero_()
+        self.active_positions = torch.arange(self.total_len, dtype=torch.long, device=self.device)
+        self.locked_positions = torch.empty(0, dtype=torch.long, device=self.device)
+        self.output_positions = self.active_positions
+        self._active_count = self.total_len
+        self._locked_count = 0
+        self._has_locks = False
+
     def _commit_logits(self, position_tensor: torch.Tensor) -> None:
         if self.last_logits is None:
             raise RuntimeError("missing current logits for commit")
