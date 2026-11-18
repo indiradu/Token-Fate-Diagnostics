@@ -1,0 +1,13 @@
+{
+  "projector_checkpoint": "/home/rui.gao/Desktop/Token-Fate-Diagnostics/results/locking_paper_redesign_20260920_161812/projector/projector.pt",
+  "projection_sha256": "6cba72b5a2a2c01a2982308136280a3c68855d85f5218b96e7c1d4522431155d",
+  "fit_examples": 8000,
+  "validation_examples": 400,
+  "steps": 10000,
+  "batch_size": 64,
+  "lr": 0.0001,
+  "weight_decay": 0.01,
+  "grad_clip": 1.0,
+  "seed": 42,
+  "validation_window": 32
+}

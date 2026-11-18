@@ -1,0 +1,23 @@
+{
+ "he_ids": [
+  "HumanEval/0",
+  "HumanEval/39"
+ ],
+ "overlap_id": 0,
+ "overlap_text": 0,
+ "sha256": {
+  "he40.jsonl": "bd92e3deea2bdc419ac321d01928dd2260ab5d807fdcb95b2b6d5d85c6827124",
+  "math_l14.jsonl": "90393752b0d59171e4b15515a3b65d2aa1c1a796758eeef84cb706746f9c7d01",
+  "math_l5.jsonl": "4fbeff1ae87b860843a8e8c70e3557c3e6024fb5151056837f09b96ce4123b37"
+ },
+ "sizes": {
+  "he40": 40,
+  "math_l14": 54,
+  "math_l5": 54
+ },
+ "source_sha256": {
+  "eval_code.jsonl": "6dbae289cbbe4049f694f08f43516c6f322e40214ad7d0d7601fedd1f9f784c7",
+  "eval_math.jsonl": "4fbeff1ae87b860843a8e8c70e3557c3e6024fb5151056837f09b96ce4123b37",
+  "set_b.jsonl": "90393752b0d59171e4b15515a3b65d2aa1c1a796758eeef84cb706746f9c7d01"
+ }
+}

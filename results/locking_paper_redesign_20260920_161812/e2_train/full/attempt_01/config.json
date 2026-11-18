@@ -1,0 +1,20 @@
+{
+  "feature_dim": 832,
+  "model_dim": 384,
+  "layers": 3,
+  "heads": 8,
+  "ff_dim": 768,
+  "dropout": 0.1,
+  "max_positions": 4096,
+  "cutoff": 0.95,
+  "hidden_indices": [
+    30,
+    31,
+    32
+  ],
+  "hidden_semantics": [
+    "raw_block_30",
+    "raw_block_31",
+    "final_normalized_block_32"
+  ]
+}

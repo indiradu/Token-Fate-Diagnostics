@@ -1,0 +1,22 @@
+{
+  "projection_sha256": "6cba72b5a2a2c01a2982308136280a3c68855d85f5218b96e7c1d4522431155d",
+  "config": {
+    "hidden_dim": 4096,
+    "state_dim": 256,
+    "delta_dim": 32,
+    "state_hidden_dim": 1024,
+    "delta_hidden_dim": 256,
+    "expected_hidden_count": 33,
+    "hidden_indices": [
+      30,
+      31,
+      32
+    ],
+    "hidden_semantics": [
+      "raw_block_30",
+      "raw_block_31",
+      "final_normalized_block_32"
+    ],
+    "feature_dim": 832
+  }
+}

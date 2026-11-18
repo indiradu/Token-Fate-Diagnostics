@@ -1,0 +1,166 @@
+{
+ "dataset": "math512",
+ "gen_cap": 512,
+ "fit_questions": [
+  "math500-l5-232",
+  "math500-l5-238",
+  "math500-l5-241",
+  "math500-l5-242",
+  "math500-l5-244",
+  "math500-l5-251",
+  "math500-l5-264",
+  "math500-l5-274",
+  "math500-l5-276",
+  "math500-l5-279",
+  "math500-l5-284",
+  "math500-l5-301",
+  "math500-l5-303",
+  "math500-l5-306",
+  "math500-l5-308",
+  "math500-l5-313",
+  "math500-l5-317",
+  "math500-l5-320",
+  "math500-l5-321",
+  "math500-l5-327",
+  "math500-l5-328",
+  "math500-l5-330",
+  "math500-l5-331",
+  "math500-l5-356",
+  "math500-l5-357",
+  "math500-l5-365",
+  "math500-l5-371",
+  "math500-l5-373",
+  "math500-l5-381",
+  "math500-l5-382",
+  "math500-l5-390",
+  "math500-l5-392",
+  "math500-l5-401",
+  "math500-l5-408",
+  "math500-l5-415",
+  "math500-l5-417",
+  "math500-l5-418",
+  "math500-l5-421",
+  "math500-l5-422",
+  "math500-l5-423",
+  "math500-l5-425",
+  "math500-l5-432",
+  "math500-l5-434",
+  "math500-l5-435",
+  "math500-l5-450",
+  "math500-l5-454",
+  "math500-l5-459",
+  "math500-l5-466",
+  "math500-l5-470",
+  "math500-l5-473",
+  "math500-l5-478",
+  "math500-l5-479",
+  "math500-l5-481",
+  "math500-l5-482",
+  "math500-l5-488",
+  "math500-l5-490",
+  "math500-l5-491",
+  "math500-l5-494",
+  "math500-l5-497",
+  "math500-l5-498"
+ ],
+ "thr_questions": [
+  "math500-l5-239",
+  "math500-l5-252",
+  "math500-l5-254",
+  "math500-l5-286",
+  "math500-l5-287",
+  "math500-l5-288",
+  "math500-l5-293",
+  "math500-l5-323",
+  "math500-l5-355",
+  "math500-l5-375",
+  "math500-l5-385",
+  "math500-l5-388",
+  "math500-l5-391",
+  "math500-l5-394",
+  "math500-l5-400",
+  "math500-l5-424",
+  "math500-l5-444",
+  "math500-l5-448",
+  "math500-l5-475",
+  "math500-l5-493"
+ ],
+ "rules": {
+  "SR_c0.9": {
+   "lambda": 0.9864077669902913,
+   "target_precision": 0.9983046992908681,
+   "features": [
+    "confidence",
+    "dist_written"
+   ],
+   "sha256": "406da575177de62ef81abd57e5c9578022113552df59330bb6e4c1aaa98d26c7",
+   "threshold_set_admitted_share": 0.3130324607191643,
+   "precision_on_threshold_set": 0.9983978413019647
+  },
+  "Fshape_c0.9": {
+   "lambda": 0.9858668658722357,
+   "target_precision": 0.9983046992908681,
+   "features": [
+    "confidence",
+    "entropy",
+    "margin"
+   ],
+   "sha256": "1cadefb4f8c4258928c97eceaf50e611bcadd9ca78e3f79d875ac9921944b867",
+   "threshold_set_admitted_share": 0.3240528715759188,
+   "precision_on_threshold_set": 0.9983097788457622
+  },
+  "Lctx_c0.9": {
+   "lambda": 0.9863196024817474,
+   "target_precision": 0.9983046992908681,
+   "features": [
+    "confidence",
+    "entropy",
+    "margin",
+    "dist_written",
+    "local_mask_ratio",
+    "pos_in_block"
+   ],
+   "sha256": "858ddbeed6bea00cc15e27d53a8ca4a090b3170554bbc61fec15d1bc90f28a75",
+   "threshold_set_admitted_share": 0.33415601470267986,
+   "precision_on_threshold_set": 0.998321385548117
+  },
+  "SR_c0.8": {
+   "lambda": 0.9615384615384616,
+   "target_precision": 0.9948552944010461,
+   "features": [
+    "confidence",
+    "dist_written"
+   ],
+   "sha256": "e5979ea0d6a571d7077f198322068bfcf89ce1dd4d3c5d4c268fdf3c07f97cf0",
+   "threshold_set_admitted_share": 0.3804813345915519,
+   "precision_on_threshold_set": 0.9948835353903256
+  },
+  "Fshape_c0.8": {
+   "lambda": 0.9604638316394548,
+   "target_precision": 0.9948552944010461,
+   "features": [
+    "confidence",
+    "entropy",
+    "margin"
+   ],
+   "sha256": "a6ef42837dc450ec19ad30bcf18b7ea36ae243dffe176a5f7b34f2eb999b6a99",
+   "threshold_set_admitted_share": 0.3874763259138032,
+   "precision_on_threshold_set": 0.9948907471430761
+  },
+  "Lctx_c0.8": {
+   "lambda": 0.9604686382506769,
+   "target_precision": 0.9948552944010461,
+   "features": [
+    "confidence",
+    "entropy",
+    "margin",
+    "dist_written",
+    "local_mask_ratio",
+    "pos_in_block"
+   ],
+   "sha256": "6fe725ea2e893d4602e0e1e4c9ca74b9e1d48104015c641e5d339a6aac692f70",
+   "threshold_set_admitted_share": 0.3940159828952665,
+   "precision_on_threshold_set": 0.9948750586186106
+  }
+ }
+}
