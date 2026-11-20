@@ -1,0 +1,25 @@
+{
+ "retrained": {
+  "file": "l2pd_retrained.pth",
+  "file_sha256": "bba1f5b8175dbec8630cd68d1fdb18f7fee756e40691e85173f7485839944cd3",
+  "tau_published": 0.96,
+  "epochs": 5000,
+  "fit_questions": 72,
+  "fit_rows": 2216,
+  "n_parameters": 2112,
+  "seed": 23,
+  "source_official_sha256_note": "trained here, not the official file",
+  "tau_matched_precision": 0.963,
+  "tau_matched": 0.946,
+  "tau_matched_how": "calls: linear interpolation of mean calls (held-out MATH train L1-4, 14 q, dense) between tau 0.93 (93.8 calls) and 0.96 (111.2 calls) to C-0.8's 103.2 calls; precision matching (Lctx rule) gave 0.963 = effectively the published 0.96"
+ },
+ "official": {
+  "file": "l2pd_official.pth",
+  "file_sha256": "c59807c585729ccdb7ec118aff344cece162f8921db40e4e4de92cc74d9a2eb2",
+  "tau_published": 0.96,
+  "n_parameters": 2112,
+  "origin": "github.com/ims-kdks/Learning-to-Parallel-Decoding llada/layer_2_flan.pth at commit 06bfd7fa3c2634d334f307916a555c58d5f97e45",
+  "origin_file_sha256": "0d375569970208524fd14ce0a71ed3d1c9b51a237c8c397f6601a8ff7adbab5f",
+  "note": "re-saved with torch.save(state_dict) after torch.load(weights_only=True); tensors identical"
+ }
+}
