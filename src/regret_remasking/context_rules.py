@@ -26,6 +26,9 @@ KINDS = {"conf", "simple", "gbm"}
 FEATURES = {"confidence", "entropy", "margin", "dist_written", "local_mask_ratio", "pos_in_block"}
 FEATURES |= {"run_words", "flip", "kl_prev", "nbr_conf_l", "nbr_conf_r", "nbr_cand_l", "nbr_cand_r", "same_l", "same_r", "p_eos", "tok_newline", "tok_space", "tok_punct",
              "dist_leftmost", "rank_left"}      # lock_features.EXTRA_FEATURES (names listed here to keep this module import-free; a test checks the two lists agree)
+FEATURES |= {"emb_spread", "emb_velocity", "hid_velocity", "att_masked", "att_cand", "n_cand", "ll_agree", "ll_p", "ll_kl"}      # lock_features2.FEATURES2 (same arrangement, same test)
+FEATURES |= {"h_in_prompt", "h_in_written", "h_bigram_prompt", "h_bigram_written", "h_num_novel", "i_digit", "i_after_eq", "i_after_op", "i_in_math", "i_brace_depth",
+             "k_min_w2", "k_mean_w4", "k_run", "k_written_w4", "j_rank_frac", "j_conf_minus_med", "j_block_written"}      # lock_features3.FEATURES3 (same arrangement, same test)
 
 
 @dataclass

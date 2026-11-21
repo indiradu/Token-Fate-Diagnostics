@@ -1,0 +1,44 @@
+{
+ "seed": 23,
+ "traces": "results/lctx_features2_20261111/records/traces_G1",
+ "split": "results/lctx_features2_20261111/manifests/split.json",
+ "rules": {
+  "Lctx-F3": {
+   "sha256": "acd2e4e973c48b50fb5dc86ec6acf01379eed8aed790b41e9d9a7647cd8db4fb",
+   "lambda": 0.9729116277668666,
+   "target_precision": 0.9951360921418705,
+   "row_filter": "not_written",
+   "features": [
+    "confidence",
+    "entropy",
+    "margin",
+    "dist_written",
+    "local_mask_ratio",
+    "pos_in_block",
+    "h_in_prompt",
+    "h_in_written",
+    "h_bigram_prompt",
+    "h_bigram_written",
+    "h_num_novel",
+    "i_digit",
+    "i_after_eq",
+    "i_after_op",
+    "i_in_math",
+    "i_brace_depth",
+    "k_min_w2",
+    "k_mean_w4",
+    "k_run",
+    "k_written_w4",
+    "j_rank_frac",
+    "j_conf_minus_med",
+    "j_block_written"
+   ],
+   "fit_rows": 458265,
+   "thr_rows": 148386,
+   "auroc_thr": 0.9310028122634183,
+   "share_thr": 0.37297319154098096,
+   "precision_thr": 0.9951394911824226,
+   "offline_reference": "results/lctx_features3_20261115/validation/ablation3_G1.json:six+hikj"
+  }
+ }
+}

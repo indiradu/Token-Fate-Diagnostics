@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import torch
@@ -78,6 +78,16 @@ class SelectiveConfig:
     collect_extra: bool = False         # default off (needs collect_rows or a rule that names them). lock_features.EXTRA_FEATURES (stability / neighbours / proposal / frontier) are added to the rule inputs and to
                                         # SelectiveResult.collected; lock == 'rule' computes them anyway when the rule's feature list names one. Pre-registration: results/lctx_features_20261110/PREREGISTERED.md
     token_class: Any = None             # int8 [vocab] bit table (bit 0 newline, 1 starts with whitespace, 2 punctuation-only) for the tok_* extra features; only read when they are computed
+    token_info: Any = None              # lock_features3 token table {digit, eq, op, ws, dollar, lbrace, rbrace: int8 [vocab]}; only read when a rule names a FEATURES3 input
+    collect_probe: bool = False         # default off (needs collect_rows or a rule that names them). lock_features2.FEATURES2 (embedding geometry / joint-write attention / logit lens) are added to the rule inputs and to
+                                        # SelectiveResult.collected; lock == 'rule' computes them anyway when the rule's feature list names one. Pre-registration: results/lctx_features2_20261111/PREREGISTERED.md
+    probe_mid_layer: int = -1           # logit-lens layer (hidden at the input of this block; == number of layers: the final norm's output); -1 = 3L/4 (24 of 32)
+    probe_attn_layer: int = -1          # layer whose attention weights (eligible queries, head mean, float32) the joint-write features read; -1 = L/2 (16 of 32)
+    probe_topk: int = 32                # candidates of the embedding features
+    collect_att_elig: bool = False      # default off (needs collect_probe). Per call, the probe layer's head-mean attention of the eligible rows over the eligible rows ((n, n) float16) in
+                                        # SelectiveResult.att_elig. Pre-registration: results/lctx_setlock_20261112/PREREGISTERED.md (set features, mutual attention)
+    call_override: tuple = ()           # default off. ((call, threshold, dense), ...): at that call (0-based) lock == conf uses `threshold` (< 0: unchanged) and dense=True runs the call dense
+                                        # without moving the refresh schedule (since_dense / block bookkeeping follow the un-overridden call). Branch rollouts of lctx_setlock_20261112
     trace: Any = None                   # default off. lock == 'trace': a trace_lock.TraceScorer (TraceLock's controller + projector). Exposes the hidden states of layers L-2, L-1 and the final norm for all computed rows
                                         # (info['hid']); needs shape='block' and refresh in {block, every_call}. The controller reads the stored features of every row below the end of the current block.
     ctrl: Any = None                    # default off. stale_cause.CacheControl: per row class (prompt / prior_written / inblock_old / next_blank / far_blank) take the CACHED rows' K/V
@@ -108,6 +118,11 @@ class SelectiveResult:
     call_blocks: list[int] = field(default_factory=list)            # log_detail: per call: block index (of the leftmost blank) the call decodes
     start_call: int = 0                 # resume: absolute index of the first call of this result (lists above are relative to it)
     extra_state: Any = field(default=None, repr=False)              # collect_extra / extra-feature rules: lock_features.ExtraState (previous call's eligible blanks)
+    probe_state: Any = field(default=None, repr=False)              # collect_probe / probe-feature rules: lock_features2.ProbeState (previous call's expected embeddings and final hiddens)
+    f3_state: Any = field(default=None, repr=False)                 # rules naming a lock_features3 input: lock_features3.F3State (written tokens and bigrams)
+    probe_time_s: float = 0.0           # collect_probe / probe-feature rules: device-synchronised time of the probe features (inside latency_s and rule_time_s)
+    overrides_applied: list[int] = field(default_factory=list)       # call_override: the calls at which an override was applied
+    att_elig: list = field(default_factory=list)                    # collect_att_elig: per call the (n, n) float16 attention among the eligible rows (numpy)
     collected: list[dict] = field(default_factory=list)             # collect_rows: per call {call, position, token, n_first_block, six rule inputs} (numpy arrays over the eligible blanks)
     ctrl_prefix: list[int] = field(default_factory=list)            # lock == trace: per call the controller's prefix length (rows it attends over)
     ctrl_proj_rows: list[int] = field(default_factory=list)         # lock == trace: per call the rows the projector ran on (computed rows below the prefix end)
@@ -198,7 +213,8 @@ class SelectiveEngine:
     # ------------------------------------------------------------------ one forward
     @torch.no_grad()
     def forward(self, tokens: torch.Tensor, rows: torch.Tensor, n_track: int, dec_local: torch.Tensor, mass_local: torch.Tensor, blank_mask: torch.Tensor, *,
-                refresh_from: int | None = None, fresh: bool = False, kv_override: Any = None, join_mask: torch.Tensor | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
+                refresh_from: int | None = None, fresh: bool = False, kv_override: Any = None, join_mask: torch.Tensor | None = None,
+                probe: tuple[int, int] | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
         """tokens (1,T) current ids; rows = initial computed positions ordered [tracked (first n_track), ...]; blank_mask (T,) bool: every blank row at this call.
         dec_local: indices INTO ``rows`` of the rows whose logits are returned (the decoding window). mass_local: indices into ``rows`` whose attention defines the
         tracked rows (upstream: the blank query rows; the window when far blanks are cached).
@@ -206,6 +222,8 @@ class SelectiveEngine:
         fresh=True: first call or a dense call: every layer recomputes all rows and refreshes its caches. refresh_from=l: all non-query rows join at layer l (tests).
         kv_override (default None): callable (layer, k_cache, v_cache) -> (k_full, v_full) giving the K/V the attention of this call reads; it must not modify the caches
         (stale_cause.KVOverride). join_mask (default None = every non-query row): (T,) bool, restricts the rows that join at refresh_from to those where it is True.
+        probe (default None): (mid layer, attention layer) of lock_features2: info gains probe_mid (1, n_dec, d) = the decoded rows' hidden at the input of block mid (mid == L: the final
+        residual), probe_attn (n_dec, T) = their head-mean float32 attention weights at the attention layer, probe_final (1, n_dec, d) = their final-norm output. Nothing on the model path changes.
         Returns (logits (1, len(dec_local), V), info)."""
         cfg, T = self.cfg, self.T
         nq = int(rows.numel())
@@ -243,6 +261,8 @@ class SelectiveEngine:
             n_cur = int(cur_rows.numel())
             if cfg.trace is not None and l >= self.L - 2:
                 hid[l] = (cur_rows, x)            # hidden_states[L-2], [L-1] of the HF model: the input of block l, for every computed row
+            if probe is not None and l == probe[0]:
+                info["probe_mid"] = x[:, win_local]
             xn = block.attn_norm(x)
             q, k, v = self._project(block, xn)
             nh, nkv = block.config.n_heads, block.config.effective_n_kv_heads
@@ -272,6 +292,8 @@ class SelectiveEngine:
             vc.index_copy_(2, cur_rows, v)
             qc.index_copy_(2, cur_rows, q)
             k_full, v_full = (kc, vc) if kv_override is None else kv_override(l, kc, vc)
+            if probe is not None and l == probe[1]:       # measurement only (float32, the decoded rows' queries): the model path below is untouched
+                info["probe_attn"] = self._weights(q[:, :, win_local].float(), k_full.float(), scale).mean(1)[0]
             if cfg.attn_impl == "manual":
                 aw = self._weights(q, k_full, scale)
                 att = aw @ v_full
@@ -316,8 +338,12 @@ class SelectiveEngine:
             x = self._ffn(block, x)
             info["layer_rows"].append(n_cur)
         info["tracked"] = torch.cat(track_tokens).unique() if track_tokens else None
+        if probe is not None and probe[0] == self.L:
+            info["probe_mid"] = x[:, win_local]
         win_x = x[:, win_local] if cfg.head_rows == "window" else x
         h = self.ln_f(win_x)
+        if probe is not None:
+            info["probe_final"] = h if cfg.head_rows == "window" else h[:, win_local]
         logits = self.head(h) if self.head is not None else F.linear(h, self.wte.weight)
         if cfg.head_rows == "all":
             logits = logits[:, win_local]
@@ -345,9 +371,10 @@ def _confident_write(logits: torch.Tensor, window_positions: torch.Tensor, x: to
 
 @torch.no_grad()
 def _rule_features(x: torch.Tensor, prompt_length: int, eligible: torch.Tensor, conf: torch.Tensor, logp: torch.Tensor, cfg: SelectiveConfig, blanks_in_first_block: int,
-                   res: SelectiveResult | None = None, tokens: torch.Tensor | None = None) -> dict:
+                   res: SelectiveResult | None = None, tokens: torch.Tensor | None = None, probe: dict | None = None) -> dict:
     """The six rule inputs of the eligible blanks, exactly as lock == 'rule' scores them (also used by collect_rows, so a fitted rule sees at decode time what it was fitted on).
-    With res/tokens given and lock_features.wants_extra(cfg): plus the extra inputs of lock_features (called exactly once per call, they carry the previous-call state)."""
+    With res/tokens given and lock_features.wants_extra(cfg): plus the extra inputs of lock_features (called exactly once per call, they carry the previous-call state).
+    With probe given ({info, engine, blank_mask, call}; only when lock_features2.wants_probe(cfg)): plus the nine probe features of lock_features2 (also once per call, previous-call state)."""
     from regret_remasking.context_rules import block_features
     feats = block_features(x, prompt_length, eligible, conf, logp[0], cfg.mask_id, cfg.block_length, cfg.gen_length)
     if cfg.shape == "window":      # the rule's block feature = share of the 32-block of the leftmost blank already written (B0 convention), not of the window
@@ -358,12 +385,34 @@ def _rule_features(x: torch.Tensor, prompt_length: int, eligible: torch.Tensor, 
             if res.extra_state is None:
                 res.extra_state = LF.ExtraState()
             feats.update(LF.extra_features(res.extra_state, x, eligible, conf, logp[0], tokens, res.nfe, res.written_total, cfg.mask_id, cfg.eos_id, cfg.token_class))
+        from regret_remasking import lock_features3 as LF3
+        if LF3.wants_f3(cfg):
+            if cfg.token_info is None:
+                raise ValueError("a rule naming lock_features3 inputs needs SelectiveConfig.token_info")
+            if res.f3_state is None:
+                res.f3_state = LF3.F3State(x[0, :prompt_length].cpu().numpy(), cfg.token_info, cfg.gen_length, cfg.block_length)
+            res.f3_state.check_state(x[0, prompt_length:prompt_length + cfg.gen_length].cpu().numpy(), cfg.mask_id)
+            feats.update(LF3.F3State.features(res.f3_state, (eligible - prompt_length).cpu().numpy(), tokens.cpu().numpy(), conf.float().cpu().numpy()))
+    if probe is not None and res is not None and tokens is not None:
+        from regret_remasking import lock_features2 as LF2
+        dev = x.device
+        if dev.type == "cuda":
+            torch.cuda.synchronize(dev)
+        t0 = time.perf_counter()
+        if res.probe_state is None:
+            res.probe_state = LF2.ProbeState()
+        feats.update(LF2.probe_features(res.probe_state, probe["engine"], probe["info"], eligible, conf, logp[0], tokens, probe["blank_mask"], probe["call"], cfg.mask_id, cfg.probe_topk))
+        if dev.type == "cuda":
+            torch.cuda.synchronize(dev)
+        res.probe_time_s += time.perf_counter() - t0
+        if cfg.collect_att_elig:
+            res.att_elig.append(probe["info"]["probe_attn"][:, eligible].to(torch.float16).cpu().numpy())
     return feats
 
 
 @torch.no_grad()
 def _lock_write(logits: torch.Tensor, eligible: torch.Tensor, x: torch.Tensor, cfg: SelectiveConfig, prompt_length: int, blanks_in_first_block: int, res: SelectiveResult,
-                trace_scores: torch.Tensor | None = None):
+                trace_scores: torch.Tensor | None = None, probe: dict | None = None):
     """paper_decode's word locks on the eligible blanks (all rows of `logits`): C-block rule (lock == conf) or a ContextRule (lock == rule), incl. the best-blank fallback."""
     from regret_remasking.paper_decode import _argmax_stable
     cur = logits.float()
@@ -377,7 +426,7 @@ def _lock_write(logits: torch.Tensor, eligible: torch.Tensor, x: torch.Tensor, c
     fallback = False
     feats = None
     if cfg.collect_rows:
-        feats = _rule_features(x, prompt_length, eligible, conf, logp, cfg, blanks_in_first_block, res, tokens)
+        feats = _rule_features(x, prompt_length, eligible, conf, logp, cfg, blanks_in_first_block, res, tokens, probe)
         res.collected.append(dict(feats, call=res.nfe, position=eligible.cpu().numpy(), token=tokens.cpu().numpy(), n_first_block=int(blanks_in_first_block)))
     if cfg.lock == "conf":
         selected = eligible[conf >= cfg.threshold]
@@ -399,7 +448,7 @@ def _lock_write(logits: torch.Tensor, eligible: torch.Tensor, x: torch.Tensor, c
     else:
         t0 = time.perf_counter()
         if feats is None:
-            feats = _rule_features(x, prompt_length, eligible, conf, logp, cfg, blanks_in_first_block, res, tokens)
+            feats = _rule_features(x, prompt_length, eligible, conf, logp, cfg, blanks_in_first_block, res, tokens, probe)
         scores = cfg.rule.scores(feats)
         accept = torch.as_tensor(scores >= cfg.rule.lam, device=x.device)
         selected = eligible[accept]
@@ -410,6 +459,8 @@ def _lock_write(logits: torch.Tensor, eligible: torch.Tensor, x: torch.Tensor, c
     idx = torch.searchsorted(eligible, selected)
     chosen = tokens.index_select(0, idx)
     x[0, selected] = chosen
+    if getattr(res, "f3_state", None) is not None:
+        res.f3_state.update((selected - prompt_length).cpu().numpy(), chosen.cpu().numpy())
     res.fallback_calls += int(fallback)
     return selected, chosen, selected[chosen.eq(cfg.eos_id)]
 
@@ -458,6 +509,10 @@ def decode_selective(model: torch.nn.Module, prompt_ids: torch.Tensor, config: S
     x = torch.full((1, T), cfg.mask_id, dtype=torch.long, device=device)
     x[:, :P] = prompt_ids
     eng = engine if engine is not None else SelectiveEngine(model, T, cfg)
+    from regret_remasking import lock_features2 as LF2
+    probe_layers = LF2.probe_layers(cfg, eng.L) if LF2.wants_probe(cfg) else None          # lock_features2: default off; layer check happens here, before any decode
+    if probe_layers is not None and (cfg.block_rows or cfg.lock in ("elastic", "trace")):
+        raise ValueError("the probe features (collect_probe / a rule naming lock_features2) need lock in {conf, rule, topk} and no block_rows")
     if sync and device.type == "cuda":
         torch.cuda.synchronize(device)
     t0 = time.perf_counter()
@@ -493,6 +548,17 @@ def decode_selective(model: torch.nn.Module, prompt_ids: torch.Tensor, config: S
         if not cfg.far_mask_cache or cfg.refresh not in ("block", "every_call") or cfg.block_rows:
             raise ValueError("ctrl needs far_mask_cache=True, refresh in {block, every_call}, no block_rows")
         recorder = CtrlRecorder(cfg.ctrl, len(eng.blocks) if hasattr(eng, "blocks") else 0, device)
+    overrides = {}
+    for ov in cfg.call_override:
+        c_ov, thr_ov, dense_ov = int(ov[0]), float(ov[1]), bool(ov[2])
+        if c_ov in overrides or c_ov < 0:
+            raise ValueError(f"call_override: duplicate or negative call {c_ov}")
+        if thr_ov >= 0 and cfg.lock != "conf":
+            raise ValueError("call_override with a threshold needs lock == 'conf'")
+        if dense_ov and (cfg.refresh != "block" or cfg.block_rows or cfg.ctrl is not None):
+            raise ValueError("call_override dense needs refresh == 'block', no block_rows / ctrl")
+        overrides[c_ov] = (thr_ov, dense_ov)
+    res.overrides_applied = []
     while True:
         first_blank = int(masked_position[0])
         blk = (first_blank - P) // cfg.block_length
@@ -508,6 +574,11 @@ def decode_selective(model: torch.nn.Module, prompt_ids: torch.Tensor, config: S
         since_dense = 0 if dense_call else since_dense + 1
         partial_due = (not dense_call) and ((cfg.partial_every_k > 0 and since_dense % cfg.partial_every_k == 0)
                                             or (cfg.refresh_every_words > 0 and cfg.words_refresh == "partial" and words_since >= cfg.refresh_every_words))
+        ov = overrides.get(call)
+        if ov is not None:
+            res.overrides_applied.append(call)
+            if ov[1] and not dense_call:
+                dense_call, partial_due = True, False          # schedule counters above already follow the un-overridden call
         if call > 0 and hasattr(eng, "token_since"):
             eng.token_since[new_decoded] = call
         l2pd = cfg.block_rows and cfg.lock == "rule" and getattr(cfg.rule, "needs_block_vector", False)
@@ -557,14 +628,16 @@ def decode_selective(model: torch.nn.Module, prompt_ids: torch.Tensor, config: S
         override = None
         if ctrl_classes is not None:
             if shadow is None:
-                from dataclasses import replace
                 shadow = shadow_engine if shadow_engine is not None else SelectiveEngine(model, T, replace(cfg, ctrl=None))
             override = cfg.ctrl.make_override(shadow, x, ctrl_classes, recorder, T)
         extra_kw = {} if override is None else {"kv_override": override}      # engine stubs in the tests do not take the keyword
         if partial_due:
             join = None if cfg.partial_join == "all" else blank_mask if cfg.partial_join == "blank" else (x[0] != cfg.mask_id)
             extra_kw = dict(extra_kw, refresh_from=cfg.partial_layer, join_mask=join)
+        if probe_layers is not None:
+            extra_kw = dict(extra_kw, probe=probe_layers)
         logits, info = eng.forward(x, rows, n_track, dec_local, mass_local, blank_mask, fresh=dense_call, **extra_kw)
+        probe = {"info": info, "engine": eng, "blank_mask": blank_mask, "call": call} if probe_layers is not None else None
         trace_scores = None
         if cfg.lock == "trace":
             if device.type == "cuda":
@@ -585,7 +658,8 @@ def decode_selective(model: torch.nn.Module, prompt_ids: torch.Tensor, config: S
             written, tok, eos_pos = _lock_write_l2pd(logits, window_pos, block_start, x, cfg, res)
         else:
             blanks_first_block = int((((masked_position - P) // cfg.block_length) == blk).sum())
-            written, tok, eos_pos = _lock_write(logits, window_pos, x, cfg, P, blanks_first_block, res, trace_scores)
+            lcfg = cfg if ov is None or ov[0] < 0 else replace(cfg, threshold=ov[0])
+            written, tok, eos_pos = _lock_write(logits, window_pos, x, lcfg, P, blanks_first_block, res, trace_scores, probe)
         res.written_total += int(written.numel())
         words_since = int(written.numel()) if (dense_call or partial_due) else words_since + int(written.numel())
         new_decoded = written

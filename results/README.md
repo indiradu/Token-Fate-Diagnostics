@@ -387,3 +387,10 @@ Words: WORD LOCK = which blanks are written per call; REPRESENTATION CACHE = whi
 | `lctx_features_20261110/` | pre-registration, orchestration | Gated feature ablation for Lctx (queued when written; no result). |
 | `tracelock_stack_20261111/` | feasibility note, pre-registration, orchestration | TraceLock under the S32, K4 and P4 caches (queued when written; no result). |
 | `metrics_survey_20261110/` | survey of the metrics 18 related papers report | Fetch-tool extractions, not verified against PDFs; basis for the comprehensive comparison. |
+
+## Hand-over to the collaborator (2026-11-22)
+
+| Directory | Contents | Role in the study |
+| --- | --- | --- |
+| `share_lctx_f3_20261122/` | `HANDOFF_LCTX_F3.md`, the Lctx-F3 rule pickle and token table (sha256 in the note), the collaborator's frozen engine `source_m1` with `engine_f3.patch` applied, loader, GPU check and its result | The new word lock for the word-lock sweep. The fitted pickle is tracked here, an exception to the rule above, because the collaborator runs it. Fitted on 60 MATH-500 L5 questions with λ set on 20 more, all disjoint from HumanEval-164, MATH-108, KodCode-held and GSM8K-held. |
+| `lctx_features3_20261115/` | pre-registration with Outcome, offline feature code (`features3_lib.py`, `build_assets.py`, `fit_ablation3.py`), ablation table, token-table metadata | Where the F3 inputs (groups h, i, k, j) were defined and tested offline. Their gate failed (+1.23 share points over six, below the +5 asked for). `tests/test_lock_features3.py` checks the live decoder module against `features3_lib.py`. |
