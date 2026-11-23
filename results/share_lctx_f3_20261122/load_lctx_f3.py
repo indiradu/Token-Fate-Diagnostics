@@ -52,7 +52,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(HERE / "source_m1_f3/src"))
     rule, sha, info = load_lctx_f3()
     print("Lctx-F3", sha, "lambda", rule.lam, "inputs", len(rule.features))
-    print("token_info", _sha(TOKEN_INFO), {k: int(v.sum()) for k, v in info.items()})
+    print("token_info", _sha(TOKEN_INFO), "ids with a value > 0", {k: int((v > 0).sum()) for k, v in info.items()}, "summed counts", {k: int(v.sum()) for k, v in info.items()})
     rng = np.random.default_rng(0)
     feats = {f: rng.random(8).astype(np.float32) for f in rule.features}
     print("scores of 8 random rows", np.round(rule.scores(feats), 4))

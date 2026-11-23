@@ -1,0 +1,34 @@
+{
+ "what": "sha256 of our D:Lctx-F3 sweep answers (results/wordlock_sweep_20261120, dense, no cache, eos_truncation=False) as hashlib.sha256(np.asarray(tokens, dtype=np.int64).tobytes()), all 512 generated positions",
+ "check": "compare with hashlib.sha256(np.asarray(res.tokens, dtype=np.int64).tobytes()).hexdigest() from check_f3_engine.py's D arm",
+ "answers": {
+  "math500-l5-241": {
+   "tokens_sha256_int64": "8d2de47cf6295f98a443addbc3c4ea8336aa8a29ea0734c71bef0c72c95596c9",
+   "n_tokens": 512,
+   "first_eos": 510,
+   "calls": 128,
+   "correct": false
+  },
+  "math500-l5-394": {
+   "tokens_sha256_int64": "1f932787b6088081339248c741e250c7173b971b6b41d46f043d1546272bb9e7",
+   "n_tokens": 512,
+   "first_eos": 510,
+   "calls": 119,
+   "correct": true
+  },
+  "HumanEval/0": {
+   "tokens_sha256_int64": "d99e1cb807c00fff78aee0c1ffdae7db98fdc549a07d62c46a02774d4d122d37",
+   "n_tokens": 512,
+   "first_eos": 178,
+   "calls": 23,
+   "correct": true
+  },
+  "HumanEval/1": {
+   "tokens_sha256_int64": "a1a059fe807253d55337494adac06a6e21522b07167d43f50c7dd76f3e96ac8f",
+   "n_tokens": 512,
+   "first_eos": 227,
+   "calls": 52,
+   "correct": false
+  }
+ }
+}

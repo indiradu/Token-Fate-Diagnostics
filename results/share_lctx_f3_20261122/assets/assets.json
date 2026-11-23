@@ -11,6 +11,16 @@
   "lbrace": 343,
   "rbrace": 253
  },
+ "counts_note": "counts = number of vocabulary ids with a value above 0. dollar, lbrace, rbrace hold a count per token (max 4); digit, eq, op, ws are 0/1. counts_summed = the arrays' sums. Added 2026-11-23; the npz is unchanged.",
+ "counts_summed": {
+  "digit": 265,
+  "eq": 264,
+  "op": 3390,
+  "ws": 127,
+  "dollar": 255,
+  "lbrace": 374,
+  "rbrace": 307
+ },
  "n_questions": 80,
  "prompt_sha256": {
   "math500-l5-244": "17c16000fd7a59a046887548757e1ee9f26b516219dfd45028d4a25d18e30ce6",
