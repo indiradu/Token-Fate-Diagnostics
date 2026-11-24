@@ -125,3 +125,46 @@ Your KodCode-held (first 150 rows of `kod_held400`, 512 tokens, scored in the bw
 Every Lctx rule loses code answers against B0 on KodCode; F3 loses the fewest of them, and its interval just reaches zero. Learn2PD (official filter, cut 0.96) keeps B0's accuracy at 7.2x.
 
 We also ran KLASS and EB-Sampler from d2Cache ourselves, since you had not run them; they are not your runs. With d2Cache's default (no confidence threshold), its KLASS writes one word per call, which is B0, so we gave it the 0.9 confidence threshold; we also cast its bf16 probabilities to float64, without which it crashes on torch 2.5. Neither changes accuracy against B0 or d2c:Conf-0.9 beyond chance on any of the four sets. The full tables are in our report.
+
+## LLaDA-1.5 on the held-out sets (added 2026-11-24)
+
+The same seven arms, question lists and settings as the LLaDA-8B held-out table above, on LLaDA-1.5 (`GSAI-ML/LLaDA-1.5` @ 84346fd). Every lock was fitted on LLaDA-8B and is used unchanged (transfer, not refit). Learn2PD is not run on LLaDA-1.5: its weights are LLaDA-8B only, and we skipped it there as in our LLaDA-1.5 HumanEval + MATH run (your open point 2).
+
+| Word lock (D, sweep) | KodCode /150 | Net vs B0 | GSM8K /100 | Net vs B0 | Pooled /250 | Net vs B0 | Net vs Lctx-0.8 | Speed vs B0 | Calls per block (KodCode, GSM8K) |
+|---|---|---|---|---|---|---|---|---|---|
+| B0 | 62 | - | 50 | - | 112 | - | +7 [−8, +21] | 1.00x | 32, 32 |
+| D:C-0.9 | 62 | +0 [−3, +3] | 47 | −3 [−10, +3] | 109 | −3 [−10, +4] | +4 [−10, +18] | 5.77x | 4.6, 9.9 |
+| D:TraceLock (T-block) | 56 | −6 [−14, +2] | 57 | +7 [−5, +19] | 113 | +1 [−13, +15] | +8 [−6, +21] | 4.55x | 5.8, 11.6 |
+| D:Lctx-0.8 (yours) | 49 | −13 [−21, −5] * | 56 | +6 [−6, +18] | 105 | −7 [−21, +8] | - | 8.00x | 3.3, 7.0 |
+| D:Lctx-six | 44 | −18 [−28, −8] * | 53 | +3 [−9, +15] | 97 | −15 [−31, +1] | −8 [−21, +5] | 7.84x | 3.4, 6.8 |
+| D:Lctx-F2 | 45 | −17 [−26, −9] * | 41 | −9 [−20, +2] | 86 | −26 [−40, −11] * | −19 [−32, −6] * | 7.56x | 3.4, 7.2 |
+| **D:Lctx-F3** | 53 | −9 [−17, −2] * | 54 | +4 [−9, +16] | 107 | −5 [−20, +9] | +2 [−12, +16] | 7.98x | 3.3, 6.9 |
+
+The LLaDA-8B pattern repeats: on KodCode every Lctx rule loses answers against B0, while C-0.9 holds; on GSM8K no arm differs from B0. Lctx-F3 vs your Lctx-0.8 is +2 on both models.
+
+## FLOP pass (added 2026-11-24, your plan section 2)
+
+One counter, `torch.utils.flop_counter.FlopCounterMode` (GEMMs and attention, 2 FLOPs per multiply-add), on LLaDA-8B-Instruct. LLaDA-1.5 has an identical `config.json`, so its per-call FLOPs are the same.
+
+- **Part A.** One dense forward of prompt + answer blanks for the first 20 prompts of each set (80 prompts). The counted backbone (LM head excluded) equals SureLock's formula `L*T*(4*D*T + 4D^2 + 4D*Dkv + 6D*Dff)` exactly on all 80, and every engine record's row counts confirm that each call is dense, so backbone per question = calls × per-call backbone.
+- **Part B.** HumanEval/0 and HumanEval/1 decoded with every arm under the counter, to separate the LM head and each lock's own GEMMs.
+
+Backbone FLOP cut vs B0, all questions of the four sets:
+
+| Word lock | LLaDA-8B (522 q) | LLaDA-1.5 (522 q) | Lock's own FLOPs, % of backbone |
+|---|---|---|---|
+| D:Lctx-0.8 | 86.9% | 86.8% | 0 (tree model on the CPU) |
+| D:Lctx-six | 87.1% | 86.7% | 0 |
+| D:Lctx-F2 | 86.4% | 86.6% | 0.25% (its probes run the LM head on an intermediate layer) |
+| **D:Lctx-F3** | 86.9% | 86.8% | 0 |
+| D:Learn2PD | 85.0% | not run | ~0 (32×32 filter, about 4 kFLOPs per call) |
+| D:C-0.9 | 81.9% | 81.7% | 0 |
+| D:TraceLock | 78.0% | 78.1% | 0.14% (projector + controller) |
+| d2c:Conf-0.9 | 82.1% | not run | 0 |
+| d2c:KLASS | 69.9% | not run | elementwise only (not counted) |
+| d2c:EB-Sampler | 48.8% | not run | elementwise only (not counted) |
+
+- In this dense sweep the FLOP cut is the call cut, because every call costs the same within a question.
+- **LM head, reported separately.** B0 computes it on every position, about 310 TFLOPs per question on LLaDA-8B. Our engine computes it on about one block's rows, about 2 TFLOPs.
+- **TraceLock.** The counter gives 0.78x the `locking_flop_accounting` formula per call, so earlier tables that used the formula slightly overstate TraceLock's FLOPs.
+- **d2Cache** was not run under the counter. Its backbone uses the same per-call count; its head is assumed to cover every position.
