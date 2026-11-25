@@ -168,3 +168,65 @@ Backbone FLOP cut vs B0, all questions of the four sets:
 - **LM head, reported separately.** B0 computes it on every position, about 310 TFLOPs per question on LLaDA-8B. Our engine computes it on about one block's rows, about 2 TFLOPs.
 - **TraceLock.** The counter gives 0.78x the `locking_flop_accounting` formula per call, so earlier tables that used the formula slightly overstate TraceLock's FLOPs.
 - **d2Cache** was not run under the counter. Its backbone uses the same per-call count; its head is assumed to cover every position.
+
+## Remaining sweep-plan items (added 2026-11-25)
+
+Everything in your word-lock sweep plan is now run. Same setting throughout: dense, no cache, no early stop, block 32, temperature 0, the same four question sets (MATH-108 = ours, see Corrections). Paired bootstrap over questions within each set, 2000 resamples, seed 23; * = 95% interval excludes 0.
+
+### Dream-v0-Instruct-7B (d2Cache code)
+
+`Dream-org/Dream-v0-Instruct-7B` @ 05334cb in d2Cache 79fb5f6 (its `dream-inst` loader, which shifts Dream's outputs by one position), Dream's own chat template, same prompts and scorer. As your plan says, only the model-agnostic word locks run here. B0 = d2Cache vanilla with no threshold (one word per call, block 32), and every arm runs in the same code, so these speeds compare directly.
+
+| Arm | Correct /522 | Net vs B0 | Speed vs B0 | Words per call | HumanEval /164 | MATH /108 | KodCode /150 | GSM8K /100 |
+|---|---|---|---|---|---|---|---|---|
+| d2c:B0 | 294 | - | 1.00x | 1.00 | 92 | 40 | 87 | 75 |
+| d2c:Conf-0.9 | 292 | −2 [−9, +5] | 5.93x | 5.61 | 91 | 41 | 83 | 77 |
+| d2c:KLASS (confidence 0.9) | 294 | +0 [−3, +3] | 3.07x | 3.61 | 91 | 40 | 87 | 76 |
+| d2c:EB-Sampler | 297 | +3 [+0, +7] | 2.43x | 2.55 | 92 | 41 | 87 | 77 |
+
+### LLaDA-1.5: Learn2PD and the d2Cache decoders
+
+D:Learn2PD uses the official LLaDA-8B filter unchanged, which settles your open point 2 as "transferred, not refit". Its net vs B0 and speed are measured against the same B0 records as the earlier LLaDA-1.5 tables.
+
+| Arm | HE + MATH /272 | Net vs B0 | Speed vs B0 | KodCode + GSM8K /250 | Net vs B0 | Speed vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 107 | - | 1.00x | 112 | - | 1.00x |
+| D:Learn2PD | 99 | −8 [−17, +0] | 6.53x | 108 | −4 [−15, +7] | 6.80x |
+| d2c:Conf-0.9 | 110 | +3 [−6, +12] | 3.74x | 115 | +3 [−8, +14] | 3.92x |
+| d2c:KLASS | 108 | +1 [−8, +9] | 1.95x | 114 | +2 [−8, +12] | 1.99x |
+| d2c:EB-Sampler | 108 | +1 [−8, +10] | 1.31x | 114 | +2 [−8, +12] | 1.28x |
+
+- **d2Cache speeds are not directly comparable with ours.** d2Cache's code costs about 45% more per call than our engine, so compare d2c rows with each other for speed and use words per call across codes.
+- **A numerics effect on LLaDA-1.5 MATH.** d2c:Conf-0.9 gets 36 and our D:C-0.9 gets 29 with the same calls (160 vs 163). Both codes run the same rule; bf16 rounding differs between them, which on LLaDA-1.5 moves 7 MATH answers. That makes −7 [−13, −1] for ours against theirs. On HumanEval, KodCode and GSM8K the two agree within chance.
+
+### Checks (plan section 3)
+
+- **d2Cache vs our engine, Conf-0.9, first 20 HumanEval prompts.** LLaDA-8B: 12 of 20 answers identical up to the end of text, calls 960 vs 945. LLaDA-1.5: 13 of 20 identical, calls 948 vs 963. This matches your Study 5 result (12 of 20, calls within 7%).
+- **Learn2PD vs the official `generate_learn2parallel`.** Setup: `ims-kdks/Learning-to-Parallel-Decoding` @ 06bfd7f, its `layer_2_flan.pth` (sha256 0d375569…), LLaDA-8B, first 5 HumanEval prompts, gen 512, block 32, τ 0.96 on the sigmoid, same prompt tokens. All 5 answers are identical in all 512 tokens. Calls are 196 vs 193: two questions take one or two extra calls, from the confidence numerics (official bf16 softmax of the raw argmax vs our float32 softmax with the mask token suppressed).
+
+### Fastest arm without detectable answer loss, per cell (plan section 2)
+
+"No detectable loss" means the 95% interval of net vs B0 is not wholly below 0. Speed is wall-clock vs that model's B0 on the same questions.
+
+| Model | Set | Fastest arm without loss | Net vs B0 | Speed vs B0 | Answer tokens/s | Faster arm that loses |
+|---|---|---|---|---|---|---|
+| LLaDA-8B | HumanEval | D:Lctx-0.8 | −1 [−9, +6] | 12.52x | 61 | |
+| LLaDA-8B | MATH-108 (ours) | D:Lctx-six | +0 [−8, +8] | 4.32x | 46 | |
+| LLaDA-8B | KodCode-held | D:Lctx-F3 | −7 [−14, +0] (on the boundary) | 9.67x | 48 | |
+| LLaDA-8B | GSM8K-held | D:Lctx-six | −3 [−12, +7] | 4.44x | 77 | |
+| LLaDA-1.5 | HumanEval | D:Lctx-F3 | −8 [−18, +1] | 12.09x | 62 | D:Lctx-0.8, −11 [−20, −2] * |
+| LLaDA-1.5 | MATH-108 (ours) | D:Lctx-six | −1 [−9, +7] | 4.42x | 45 | |
+| LLaDA-1.5 | KodCode-held | D:Learn2PD | −2 [−8, +4] | 7.83x | 42 | D:Lctx-0.8, −13 [−21, −5] * |
+| LLaDA-1.5 | GSM8K-held | D:Lctx-six | +3 [−9, +15] | 4.57x | 80 | |
+| Dream-7B | HumanEval | d2c:Conf-0.9 | −1 [−4, +2] | 11.93x | 26 | |
+| Dream-7B | MATH-108 (ours) | d2c:Conf-0.9 | +1 [−2, +4] | 2.75x | 27 | |
+| Dream-7B | KodCode-held | d2c:Conf-0.9 | −4 [−9, +0] | 10.12x | 29 | |
+| Dream-7B | GSM8K-held | d2c:Conf-0.9 | +2 [+0, +5] | 2.86x | 35 | |
+
+### Your open points (plan section 6)
+
+1. **Baselines:** re-measured inside this sweep (B0 and Conf-0.9 in every model and code), not reused from Study 5.
+2. **Learn2PD on LLaDA-1.5:** run with the transferred LLaDA-8B weights (table above).
+3. **Dream:** in scope, with the model-agnostic arms only (table above).
+4. **Our lock:** delivered as a frozen `ContextRule` pickle (Lctx-F3, this note).
+5. **The grid (Study 6):** these word locks are the word-lock axis; we have not run the cache × word-lock grid for F3 beyond our own compare_grid.
