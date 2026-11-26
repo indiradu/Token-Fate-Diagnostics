@@ -230,3 +230,49 @@ D:Learn2PD uses the official LLaDA-8B filter unchanged, which settles your open 
 3. **Dream:** in scope, with the model-agnostic arms only (table above).
 4. **Our lock:** delivered as a frozen `ContextRule` pickle (Lctx-F3, this note).
 5. **The grid (Study 6):** these word locks are the word-lock axis; we have not run the cache × word-lock grid for F3 beyond our own compare_grid.
+
+## Dream-v0-Instruct-7B: the LLaDA-fitted word locks transferred unchanged (added 2026-11-26)
+
+Beyond your plan, which limited Dream to the model-agnostic word locks. D:C-0.9, D:Lctx-0.8, D:Lctx-six, D:Lctx-F3 and D:Learn2PD run on Dream with the fits from LLaDA-8B, unchanged:
+- The Lctx rules get a Dream token-class table, built by the same classifier as `build_assets.py` (vocab 152064, sha256 `f47fcf6fb62dc624…`).
+- Learn2PD uses the official `layer_2_flan.pth` (tau 0.96 on the sigmoid).
+
+D:Lctx-F2 and D:TraceLock read LLaDA's hidden states (width 4096; Dream's is 3584), so they cannot run on Dream.
+
+These arms run in our own Dream loop, not in d2Cache:
+- Each call is one full forward.
+- The loop applies d2Cache's logit shift (`prepare_logits_for_generation`).
+- The word lock is the repo engine's `_lock_write` (or `_lock_write_l2pd`).
+
+Loop check against d2Cache on 20 HumanEval prompts:
+- Our B0 vs d2c:B0: 19/20 identical texts, 84.2 vs 83.1 ms per call, 13 vs 13 correct.
+- Our C-0.9 vs d2c:Conf-0.9: 19/20 identical, 843 vs 827 calls, 12 vs 12 correct.
+
+Speeds are therefore measured against the same d2c:B0 records as the table above.
+
+Records and analysis are in `results/wordlock_sweep_20261125_dream_locks/` on the cluster (`orchestration/run_dream_locks.py`, `analyze_dream_all.py`, `results.md`, `validation/loop_vs_d2c.json`). All 5 arms × 522 questions were scored, with no duplicates.
+
+| Arm | Correct /522 | Net vs B0 | Speed vs B0 | Words per call | HumanEval net | MATH net | KodCode net | GSM8K net |
+|---|---|---|---|---|---|---|---|---|
+| D:C-0.9 | 292 | −2 [−9, +5] | 5.96x | 5.57 | −1 | +1 | −4 | +2 |
+| D:Learn2PD | 285 | −9 [−20, +2] | 7.02x | 6.59 | −8 [−14, −3] * | +5 [+0, +11] | −7 [−14, +0] | +1 |
+| D:Lctx-F3 | 275 | −19 [−38, −2] * | 8.12x | 7.80 | −12 [−22, −2] * | +3 | −9 [−19, +0] | −1 |
+| D:Lctx-0.8 | 265 | −29 [−47, −11] * | 8.28x | 7.88 | −13 [−23, −3] * | −1 | −16 [−25, −7] * | +1 |
+| D:Lctx-six | 260 | −34 [−51, −17] * | 8.20x | 7.82 | −14 [−23, −5] * | −1 | −16 [−25, −7] * | −3 |
+
+What this shows:
+- D:C-0.9 gives the same 292 answers as d2c:Conf-0.9.
+- The transferred locks write more words per call on Dream than on LLaDA: Lctx is 13–16x on code and 3.9–4.2x on maths.
+- They lose answers on code only. Every Lctx rule loses on HumanEval; Lctx-0.8 and six also lose on KodCode.
+- None loses on MATH or GSM8K.
+- Lctx-F3 vs Lctx-0.8 on Dream: +10 [−8, +28], not resolved.
+- Learn2PD vs Lctx-0.8: +20 [+2, +38].
+
+Across all three models (12 cells per lock), the cells without a detectable loss are:
+- C-0.9: 12/12
+- Learn2PD: 10/12
+- Lctx-F3: 10/12
+- Lctx-0.8: 7/12
+- Lctx-six: 7/12
+- Lctx-F2: 5/8
+- TraceLock: 7/8
